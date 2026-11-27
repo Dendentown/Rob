@@ -395,6 +395,18 @@
   ];
 
   // Étend le monde jusqu'à l'abscisse xMax
+  // Plateformes volantes (qui ne reposent ni sur le sol ni sur un autre bloc) : indestructibles,
+  // sinon on ne pourrait plus passer certains obstacles (vide en dessous, étage du haut…)
+  function marquerVolantes(rects, debut) {
+    for (let i = debut; i < rects.length; i++) {
+      const r = rects[i];
+      if (r.type === "sol" || r.type === "plafond") continue;
+      const base = r.y + r.h;
+      const pose = rects.some((o) => o !== r && Math.abs(o.y - base) < 1 && o.x < r.x + r.w - 1 && o.x + o.w > r.x + 1);
+      if (!pose) r.fixe = true;
+    }
+  }
+
   function etendre(m, xMax) {
     while (m.xGen < Math.min(xMax, m.fin + 20 * U)) {
       const d = m.xGen / U;
@@ -411,7 +423,9 @@
       if (choix.nom === "envers") m.dejaEnvers = true;
       m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
       const tm = envers ? mondeTemp(m) : m;
+      const debut = tm.rects.length;
       const res = choix.f(tm, m.xGen, m.g, m.alea);
+      marquerVolantes(tm.rects, debut);
       if (envers) retourner(m, tm);
       m.xGen += res.l * U; m.g = res.g;
       // sol plat entre deux morceaux, court : on ne meurt pas, les obstacles peuvent être serrés
@@ -548,7 +562,7 @@
       const dessous = ya >= r.y + r.h - 12 && j.vy <= 0;
       if (dessus && !(s < 0 && j.vy < 0)) { j.y = r.y - U; j.vy = 0; if (s > 0) j.sol = true; else ev.push("cogne"); }
       else if (dessous) { j.y = r.y + r.h; j.vy = 0; if (s < 0) j.sol = true; }
-      else if (r.type !== "sol" && r.type !== "plafond" && r.type !== "mobile" && r.type !== "fragile" && j.boost > 0) {
+      else if (r.type !== "sol" && r.type !== "plafond" && r.type !== "mobile" && r.type !== "fragile" && !r.fixe && j.boost > 0) {
         if (r.src) r.src.detruit = true; else r.detruit = true;
         ev.push("casse");
       } else {
@@ -661,7 +675,7 @@
     const dansY = (a, b) => a < y2 && b > y1;
     let n = 0;
     const casser = (o) => { o.detruit = true; n++; };
-    m.rects.forEach((r) => { if (!r.detruit && r.type !== "sol" && r.type !== "plafond" && dansX(r.x, r.w) && dansY(r.y, r.y + r.h)) casser(r); });
+    m.rects.forEach((r) => { if (!r.detruit && !r.fixe && r.type !== "sol" && r.type !== "plafond" && dansX(r.x, r.w) && dansY(r.y, r.y + r.h)) casser(r); });
     m.piques.forEach((p) => { if (!p.detruit && dansX(p.x) && (p.bas ? dansY(p.y, p.y + U) : dansY(p.y - U, p.y))) casser(p); });
     m.tombants.forEach((o) => { const y = yTombant(o, j); if (!o.detruit && dansX(o.x, o.w) && dansY(y, y + o.h)) casser(o); });
     m.lasers.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y1, o.y2)) casser(o); });
@@ -697,7 +711,7 @@
     let heurte = false;
     for (const r of rectsDuMoment(m, j)) {
       if (r.detruit || (r.src && r.src.detruit) || !(nx + U - 3 > r.x && nx + 3 < r.x + r.w && ny + U - 3 > r.y && ny + 3 < r.y + r.h)) continue;
-      if (["sol", "plafond", "mobile", "fragile"].includes(r.type)) heurte = true;
+      if (r.fixe || ["sol", "plafond", "mobile", "fragile"].includes(r.type)) heurte = true;
       else { if (r.src) r.src.detruit = true; else r.detruit = true; if (!ev.includes("casse")) ev.push("casse"); }
     }
     if (!heurte) { j.x = nx; j.y = ny; }
