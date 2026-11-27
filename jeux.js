@@ -98,4 +98,13 @@ const JEUX = [
     dossier: "labyrinthe",
     statut: "disponible",
   },
+  {
+    titre: "Néon Dash",
+    description: "Le cube fonce tout seul : saute au bon moment !",
+    categorie: "reflexe",
+    icone: "🔷",
+    niveau: "Tous niveaux",
+    dossier: "dash",
+    statut: "disponible",
+  },
 ];
