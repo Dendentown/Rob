@@ -89,4 +89,13 @@ const JEUX = [
     dossier: "breakout",
     statut: "disponible",
   },
+  {
+    titre: "Labyrinthe",
+    description: "Rob le robot ramasse les gommes en évitant les bugs.",
+    categorie: "reflexe",
+    icone: "🤖",
+    niveau: "Tous niveaux",
+    dossier: "labyrinthe",
+    statut: "disponible",
+  },
 ];

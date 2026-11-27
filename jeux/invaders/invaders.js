@@ -4,7 +4,7 @@
    détruits, 4 boucliers qui s'abîment, une soucoupe de temps en
    temps, 3 vies. Chaque vague détruite en amène une plus basse et
    plus rapide.
-   Points : 🦑 30 · 🦀 20 · 🐙 10 · soucoupe 50 à 300
+   Points : rang du haut 30 · milieu 20 · bas 10 · soucoupe 50 à 300
    ============================================================ */
 (function () {
   const JEU = "invaders";
@@ -18,12 +18,13 @@
 
   // ---------- Sprites (X = pixel allumé) ----------
   const SPRITES = {
-    A: [["...XX...", "..XXXX..", ".XXXXXX.", "XX.XX.XX", "XXXXXXXX", "..X..X..", ".X.XX.X.", "X.X..X.X"],
-        ["...XX...", "..XXXX..", ".XXXXXX.", "XX.XX.XX", "XXXXXXXX", ".X.XX.X.", "X......X", ".X....X."]],
-    B: [["..X.....X..", "...X...X...", "..XXXXXXX..", ".XX.XXX.XX.", "XXXXXXXXXXX", "X.XXXXXXX.X", "X.X.....X.X", "...XX.XX..."],
-        ["..X.....X..", "X..X...X..X", "X.XXXXXXX.X", "XXX.XXX.XXX", "XXXXXXXXXXX", ".XXXXXXXXX.", "..X.....X..", ".X.......X."]],
-    C: [["....XXXX....", ".XXXXXXXXXX.", "XXXXXXXXXXXX", "XXX..XX..XXX", "XXXXXXXXXXXX", "...XX..XX...", "..XX.XX.XX..", "XX........XX"],
-        ["....XXXX....", ".XXXXXXXXXX.", "XXXXXXXXXXXX", "XXX..XX..XXX", "XXXXXXXXXXXX", "..XXX..XXX..", ".XX..XX..XX.", "..XX....XX.."]],
+    // créatures originales : un œil, un vaisseau-losange, une méduse à antennes
+    A: [["...XXXX...", ".XXXXXXXX.", "XXX....XXX", "XX..XX..XX", "XX..XX..XX", "XXX....XXX", ".XXXXXXXX.", "X.X.XX.X.X"],
+        ["...XXXX...", ".XXXXXXXX.", "XXX....XXX", "XX.XX...XX", "XX.XX...XX", "XXX....XXX", ".XXXXXXXX.", ".X.X..X.X."]],
+    B: [["....XX....", "...XXXX...", "..XX..XX..", ".XXXXXXXX.", "XX.X..X.XX", "XXXXXXXXXX", "..X.XX.X..", ".X......X."],
+        ["....XX....", "...XXXX...", "..XX..XX..", ".XXXXXXXX.", "XX..XX..XX", "XXXXXXXXXX", "..X.XX.X..", "X........X"]],
+    C: [["X........X", ".X......X.", "..XXXXXX..", ".XXXXXXXX.", "XX.XXXX.XX", "XXXXXXXXXX", ".XX.XX.XX.", "XX......XX"],
+        [".X......X.", ".X......X.", "..XXXXXX..", ".XXXXXXXX.", "XXX.XX.XXX", "XXXXXXXXXX", ".XX.XX.XX.", "..XX..XX.."]],
     joueur: [[".....X.....", "....XXX....", "....XXX....", ".XXXXXXXXX.", "XXXXXXXXXXX", "XXXXXXXXXXX", "XXXXXXXXXXX"]],
     soucoupe: [[".....XXXXXX.....", "...XXXXXXXXXX...", "..XXXXXXXXXXXX..", ".XX.XX.XX.XX.XX.", "XXXXXXXXXXXXXXXX", "..XXX..XX..XXX..", "...X........X..."]],
     boum: [["X...X...X", ".X..X..X.", "..X...X..", "XX.....XX", "..X...X..", ".X..X..X.", "X...X...X"]],
