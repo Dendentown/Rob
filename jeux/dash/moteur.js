@@ -920,13 +920,8 @@
     c.w += -(G / c.L) * Math.sin(c.th) * dt; // pendule : accélère en descendant, ralentit en remontant
     c.th += c.w * dt;
     const p = posA(c.th);
-    // l'élan casse les obstacles ; sol, plafonds et plateformes volantes arrêtent le balancement
-    let heurte = false;
-    for (const r of rectsDuMoment(m, j)) {
-      if (r.detruit || (r.src && r.src.detruit) || !(p.x + U - 3 > r.x && p.x + 3 < r.x + r.w && p.y + U - 3 > r.y && p.y + 3 < r.y + r.h)) continue;
-      if (r.fixe || ["sol", "plafond", "mobile", "fragile"].includes(r.type)) heurte = true;
-      else { if (r.src) r.src.detruit = true; else r.detruit = true; if (!ev.includes("casse")) ev.push("casse"); }
-    }
+    // le grappin ne casse rien : tout obstacle touché arrête le balancement
+    const heurte = rectsDuMoment(m, j).some((r) => !r.detruit && !(r.src && r.src.detruit) && p.x + U - 3 > r.x && p.x + 3 < r.x + r.w && p.y + U - 3 > r.y && p.y + 3 < r.y + r.h);
     if (heurte) { lacher(j, ev, true); return; }
     j.x = p.x; j.y = p.y;
     j.rot = c.th * s;
