@@ -78,10 +78,8 @@
   function pique(m, x, yBase, bas) { m.piques.push({ id: m.id++, x, y: yBase, bas: !!bas }); }
   function tremplin(m, x, g) {
     m.tremplins.push({ id: m.id++, x, y: yDe(g) });
-    // une boîte « ? » sur la trajectoire du rebond, près du sommet
-    const v = vitesseBase(x), t = 0.36;
-    const dx = v * t, dy = -SAUT_TREMPLIN * t - 0.5 * G * t * t;
-    m.boites.push({ id: m.id++, x: x + U / 2 + dx, y: yDe(g) - U / 2 - dy });
+    // une boîte « ? » posée juste au-dessus du tremplin : on la prend en rebondissant
+    m.boites.push({ id: m.id++, x: x + U / 2, y: yDe(g + 1.2) });
   }
   function anneau(m, x, niveau) { m.anneaux.push({ id: m.id++, x, y: yDe(niveau) }); }
   function boite(m, x, niveau) { m.boites.push({ id: m.id++, x, y: yDe(niveau) }); }
