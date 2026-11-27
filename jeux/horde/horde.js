@@ -12,7 +12,8 @@
    ============================================================ */
 (function () {
   const JEU = "horde";
-  const W = 800, H = 500;
+  // le terrain prend toute la place libre à l'écran (taille recalculée si la fenêtre change)
+  let W = 800, H = 500;
   const canvas = document.querySelector("#ecran");
   const ctx = canvas.getContext("2d");
   const $ = (s) => document.querySelector(s);
@@ -73,12 +74,28 @@
     if (etat === "choix" && ["1", "2", "3"].includes(k)) { const b = $("#ov-choix").children[+k - 1]; if (b) b.click(); }
   });
   addEventListener("keyup", (e) => touches.delete(e.key.toLowerCase()));
-  // joystick virtuel : on pose le doigt n'importe où sur le terrain et on glisse
-  let joy = null;
-  const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }; };
-  canvas.addEventListener("pointerdown", (e) => { const p = pos(e); joy = { ox: p.x, oy: p.y, x: p.x, y: p.y }; });
-  canvas.addEventListener("pointermove", (e) => { if (joy) { const p = pos(e); joy.x = p.x; joy.y = p.y; } });
-  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => canvas.addEventListener(ev, () => { joy = null; }));
+  // joystick virtuel : on pose le doigt N'IMPORTE OÙ sur l'écran et on glisse
+  let joy = null; // positions en pixels de l'écran
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button, .modal, .overlay:not([hidden])")) return;
+    joy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
+    if (e.pointerType !== "mouse") e.preventDefault();
+  }, { passive: false });
+  document.addEventListener("pointermove", (e) => { if (joy && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
+  ["pointerup", "pointercancel"].forEach((ev) => document.addEventListener(ev, (e) => { if (joy && e.pointerId === joy.id) joy = null; }));
+  // écran → terrain (pour dessiner le joystick)
+  const versTerrain = (x, y) => { const r = canvas.getBoundingClientRect(); return { x: ((x - r.left) / r.width) * W, y: ((y - r.top) / r.height) * H }; };
+
+  function dimensionner() {
+    const zone = document.querySelector(".zone-cadre");
+    const w = Math.max(300, Math.floor(zone.clientWidth - 12)), h = Math.max(300, Math.floor(zone.clientHeight - 12));
+    if (w === W && h === H) return;
+    W = w; H = h;
+    canvas.width = W; canvas.height = H;
+    document.querySelector("#terrain").dataset.ratio = W + "/" + H;
+    if (window.Page) Page.ajuster();
+  }
+  addEventListener("resize", dimensionner);
 
   function directionVoulue() {
     let dx = 0, dy = 0;
@@ -102,7 +119,7 @@
     if (t > 40 && r < 0.3) type = "rapide";
     if (t > 90 && r < 0.12) type = "brute";
     const m = MONSTRES[type];
-    const a = Math.random() * Math.PI * 2, d = 480 + Math.random() * 80;
+    const a = Math.random() * Math.PI * 2, d = Math.hypot(W, H) / 2 + 40 + Math.random() * 80; // toujours hors de l'écran
     const force = 1 + t / 150;
     monstres.push({ type, x: rob.x + Math.cos(a) * d, y: rob.y + Math.sin(a) * d, pv: m.pv * force, flash: 0, touchesOrbe: 0, ondeVue: -1 });
   }
@@ -269,7 +286,8 @@
       // contact avec Rob
       if (l < 22 + t.taille * 2) { rob.pv -= t.deg * dt; rob.touche = 0.1; }
       // trop loin derrière : on le replace devant
-      if (l > 900) { const a = Math.random() * Math.PI * 2; m.x = rob.x + Math.cos(a) * 520; m.y = rob.y + Math.sin(a) * 520; }
+      const loin = Math.hypot(W, H) / 2 + 400;
+      if (l > loin) { const a = Math.random() * Math.PI * 2, d = Math.hypot(W, H) / 2 + 60; m.x = rob.x + Math.cos(a) * d; m.y = rob.y + Math.sin(a) * d; }
     }
     if (rob.touche > 0) rob.touche -= dt;
 
@@ -379,18 +397,22 @@
     // barre d'XP en haut
     ctx.fillStyle = "#1c1240"; ctx.fillRect(0, 0, W, 8);
     ctx.fillStyle = "#19f0ff"; ctx.fillRect(0, 0, W * Math.min(1, xp / xpNiveau(niveau)), 8);
-    // joystick
+    // joystick (là où le doigt est posé)
     if (joy) {
+      const o = versTerrain(joy.ox, joy.oy);
       ctx.strokeStyle = "rgba(25,240,255,0.5)"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 40, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(o.x, o.y, 40, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = "rgba(25,240,255,0.5)"; ctx.beginPath();
       const jx = joy.x - joy.ox, jy = joy.y - joy.oy, l = Math.hypot(jx, jy), f = l > 40 ? 40 / l : 1;
-      ctx.arc(joy.ox + jx * f, joy.oy + jy * f, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(o.x + jx * f, o.y + jy * f, 14, 0, Math.PI * 2); ctx.fill();
     }
 
-    $("#score").textContent = score();
-    $("#temps").textContent = chrono();
-    $("#niveau").textContent = niveau;
+    // infos, sur le terrain
+    ctx.textBaseline = "top"; ctx.font = "14px 'Press Start 2P', monospace";
+    ctx.textAlign = "left"; ctx.fillStyle = "#ffe14d"; ctx.fillText(String(score()), 12, 18);
+    ctx.textAlign = "center"; ctx.fillStyle = "#3dff7a"; ctx.fillText(chrono(), W / 2, 18);
+    ctx.textAlign = "right"; ctx.fillStyle = "#ff2bd6"; ctx.fillText("NIV " + niveau, W - 12, 18);
+    ctx.textBaseline = "alphabetic";
   }
 
   // ---------- Boucle ----------
@@ -406,6 +428,8 @@
     get rob() { return rob; }, get monstres() { return monstres; }, get armes() { return armes; }, get score() { return score(); }, nouvellePartie };
 
   $("#ov-bouton").addEventListener("click", nouvellePartie);
+  dimensionner();
+  if (document.fonts) document.fonts.ready.then(dimensionner);
   Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(Salle.pseudo())));
   Salle.demarrer(JEU);
   $("#ov-titre").textContent = "HORDE";

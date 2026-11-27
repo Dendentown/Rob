@@ -6,6 +6,7 @@
   <title>Horde — Rob</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../style.css" />
+  <style>body { touch-action: none; -webkit-user-select: none; user-select: none; } .corps-jeu { width: 100%; padding: 12px; }</style>
 </head>
 <body class="page-jeu">
   <header class="barre-jeu">
@@ -26,12 +27,6 @@
         </div>
       </div>
     </div>
-    <aside class="panneau-lateral">
-      <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
-      <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Temps</span><span class="val" id="temps">0</span></div>
-      <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Niveau</span><span class="val" id="niveau">0</span></div>
-      <ul class="salle" id="liste-salle" hidden></ul>
-    </aside>
   </div>
   <div class="modal" id="modal-classement" hidden>
     <div class="modal-boite">
