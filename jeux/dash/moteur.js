@@ -450,13 +450,19 @@
           });
           cx += (2 + chemin.length * pas) * U;
         } else {
+          // portes laser sur TOUTE la hauteur du couloir, avec deux ouvertures qui se ferment à tour de rôle
           const ph = a() * 6.283;
-          [3, 10].forEach((i, q) => {
-            const f = ph + q * 1.9;
-            m.lasers.push({ id: m.id++, x: cx + i * U + 12, w: 6, y1: yN(4), y2: sol0, P: 1.5, ph: f });
-            m.lasers.push({ id: m.id++, x: cx + i * U + 12, w: 6, y1: haut, y2: yN(4.6), P: 1.5, ph: f + Math.PI });
+          [3, 11].forEach((i, q) => {
+            const f = ph + q * 1.9, lx = cx + i * U + 12;
+            const a1 = 1.2 + a() * 1.3, b1 = 5 + a() * 1.2, o = 1.7; // bas des ouvertures A et B, hauteur 1,7 bloc
+            const seg = (n1, n2, extra) => m.lasers.push(Object.assign({ id: m.id++, x: lx, w: 6, y1: yN(n2), y2: yN(n1), P: 1.6, ph: f }, extra));
+            seg(0, a1, { toujours: true });
+            seg(a1, a1 + o, { ph: f });                // ouverture A
+            seg(a1 + o, b1, { toujours: true });
+            seg(b1, b1 + o, { ph: f + Math.PI });      // ouverture B (fermée quand A est ouverte)
+            seg(b1 + o, 8, { toujours: true });
           });
-          cx += 14 * U;
+          cx += 15 * U;
         }
       }
       m.portails.push({ id: m.id++, x: cx + 2 * U, haut, bas: sol0, mode: "cube" });
@@ -624,7 +630,7 @@
   }
   const yMobile = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const yScie = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
-  const laserActif = (o, t) => Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
+  const laserActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
   function posPendule(o, t) {
     const th = o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
     return { x: o.x + o.L * Math.sin(th), y: o.py + o.L * Math.cos(th) };
