@@ -8,7 +8,7 @@
 
 const PLATEFORME = {
   nom: "Rob",
-  sousTitre: "La salle de mini-jeux de la classe",
+  sousTitre: "Salle d’arcade de la classe",
 };
 
 // Les familles de jeux (les filtres en haut de la page)
@@ -21,45 +21,9 @@ const CATEGORIES = [
 ];
 
 // statut : "disponible" (jouable) ou "bientot" (carte grisée)
+// Aucun jeu pour l'instant : on les ajoutera ensemble.
+// Exemple d'entrée :
+// { titre: "Mon jeu", description: "…", categorie: "calcul",
+//   niveau: "5e", dossier: "mon-jeu", statut: "disponible" },
 const JEUX = [
-  {
-    titre: "Jeu de calcul",
-    description: "À créer ensemble.",
-    categorie: "calcul",
-    niveau: "6e – 3e",
-    dossier: "",
-    statut: "bientot",
-  },
-  {
-    titre: "Jeu de logique",
-    description: "À créer ensemble.",
-    categorie: "logique",
-    niveau: "6e – 3e",
-    dossier: "",
-    statut: "bientot",
-  },
-  {
-    titre: "Jeu de géométrie",
-    description: "À créer ensemble.",
-    categorie: "geometrie",
-    niveau: "6e – 3e",
-    dossier: "",
-    statut: "bientot",
-  },
-  {
-    titre: "Quiz",
-    description: "À créer ensemble.",
-    categorie: "quiz",
-    niveau: "6e – 3e",
-    dossier: "",
-    statut: "bientot",
-  },
-  {
-    titre: "Jeu de réflexe",
-    description: "À créer ensemble.",
-    categorie: "reflexe",
-    niveau: "6e – 3e",
-    dossier: "",
-    statut: "bientot",
-  },
 ];

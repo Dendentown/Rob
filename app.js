@@ -19,8 +19,12 @@
     filtres.appendChild(b);
   }
 
-  bouton("tous", "Tous les jeux");
-  CATEGORIES.forEach((c) => bouton(c.id, c.emoji + " " + c.nom));
+  // Filtres seulement s'il y a des jeux, et seulement les catégories utilisées
+  const utilisees = CATEGORIES.filter((c) => JEUX.some((j) => j.categorie === c.id));
+  if (utilisees.length > 1) {
+    bouton("tous", "Tous");
+    utilisees.forEach((c) => bouton(c.id, c.nom));
+  }
 
   function carte(jeu) {
     const cat = parId[jeu.categorie] || { nom: jeu.categorie, emoji: "🎲", id: "autre" };

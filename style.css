@@ -1,174 +1,239 @@
+/* ============================================================
+   STYLE ARCADE ANNÉES 80 — pixel art + néons façon Tron
+   ============================================================ */
 :root {
-  --fond: #fff8ef;
-  --encre: #1f2a44;
-  --doux: #5b6680;
-  --carte: #ffffff;
-  --ombre: 0 6px 0 rgba(31, 42, 68, 0.12);
-  --calcul: #ff7a59;
-  --logique: #7c5cff;
-  --geometrie: #1fb5a6;
-  --quiz: #f5b400;
-  --reflexe: #ff4f8b;
-  --autre: #8892a6;
+  --nuit: #05010f;
+  --nuit2: #0c0424;
+  --cyan: #19f0ff;
+  --rose: #ff2bd6;
+  --jaune: #ffe14d;
+  --vert: #3dff7a;
+  --orange: #ff8a1f;
+  --rouge: #ff3b3b;
+  --texte: #d8f9ff;
+  --doux: #7a8fb5;
+  --pixel: "Press Start 2P", "Courier New", monospace;
+  --ecran: "VT323", "Courier New", monospace;
+  /* néon */
+  --halo-cyan: 0 0 4px var(--cyan), 0 0 12px var(--cyan), 0 0 28px rgba(25, 240, 255, 0.5);
+  --halo-rose: 0 0 4px var(--rose), 0 0 12px var(--rose), 0 0 28px rgba(255, 43, 214, 0.5);
 }
 
 * { box-sizing: border-box; }
+html { background: var(--nuit); }
 
 body {
   margin: 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: "Nunito", system-ui, sans-serif;
-  color: var(--encre);
-  background:
-    radial-gradient(circle at 10% 0%, #ffe3c7 0, transparent 40%),
-    radial-gradient(circle at 95% 15%, #e2dbff 0, transparent 35%),
-    var(--fond);
+  font-family: var(--ecran);
+  font-size: 22px;
+  color: var(--texte);
+  background: linear-gradient(180deg, var(--nuit) 0%, var(--nuit2) 55%, #1a0533 100%);
+  overflow-x: hidden;
+  position: relative;
+  isolation: isolate;
+  image-rendering: pixelated;
 }
 
-.entete {
-  text-align: center;
-  padding: 3rem 1rem 1.5rem;
+/* Sol en grille façon Tron (perspective) */
+body::before {
+  content: "";
+  position: fixed;
+  left: -50%;
+  right: -50%;
+  bottom: -10vh;
+  height: 55vh;
+  background-image:
+    linear-gradient(var(--rose) 2px, transparent 2px),
+    linear-gradient(90deg, var(--rose) 2px, transparent 2px);
+  background-size: 60px 60px;
+  transform: perspective(300px) rotateX(62deg);
+  transform-origin: center top;
+  opacity: 0.5;
+  animation: defile 1.2s linear infinite;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%);
+          mask-image: linear-gradient(to bottom, transparent, #000 35%);
+  z-index: -1;
+  pointer-events: none;
 }
-.logo {
-  font-size: 3.2rem;
-  display: inline-block;
-  animation: flotte 3s ease-in-out infinite;
+@keyframes defile { to { background-position: 0 60px; } }
+
+/* Lignes de balayage de vieil écran */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.25) 0 2px, transparent 2px 4px);
+  pointer-events: none;
+  z-index: 50;
 }
-@keyframes flotte { 50% { transform: translateY(-6px) rotate(-4deg); } }
+
+/* ---------- En-tête ---------- */
+.entete { text-align: center; padding: 2.5rem 1rem 1.2rem; }
+.logo { display: inline-block; width: 96px; height: 96px; animation: flotte 2s steps(2) infinite; }
+.logo svg { width: 100%; height: 100%; shape-rendering: crispEdges; filter: drop-shadow(0 0 6px var(--cyan)); }
+@keyframes flotte { 50% { transform: translateY(-6px); } }
 
 h1 {
-  font-family: "Fredoka", sans-serif;
-  font-size: clamp(2.6rem, 7vw, 4rem);
-  margin: 0.2rem 0 0;
-  letter-spacing: 0.02em;
+  font-family: var(--pixel);
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  margin: 0.8rem 0 0;
+  color: #fff;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: 4px 4px 0 var(--rose), var(--halo-cyan);
 }
-.sous-titre { color: var(--doux); font-size: 1.15rem; margin: 0.4rem 0 0; }
+.sous-titre {
+  font-family: var(--pixel);
+  font-size: clamp(0.6rem, 2.2vw, 0.85rem);
+  color: var(--jaune);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin: 1.2rem 0 0;
+  text-shadow: 0 0 8px rgba(255, 225, 77, 0.7);
+}
 
 main { width: min(1100px, 100% - 2rem); margin: 0 auto; flex: 1; }
 
-.filtres {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem;
-  margin-bottom: 2rem;
-}
-.filtre {
-  font: 600 1rem "Nunito", sans-serif;
-  border: 2px solid var(--encre);
-  background: var(--carte);
-  color: var(--encre);
-  border-radius: 999px;
-  padding: 0.5rem 1.1rem;
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-.filtre:hover { transform: translateY(-2px); }
-.filtre.actif { background: var(--encre); color: #fff; }
-
-.grille {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.4rem;
+/* ---------- Bordure pixel réutilisable ---------- */
+.pixel-cadre, .rejoindre form, .carte, .zone-jeu, .filtre, .rejoindre input, .rejoindre button, .bouton, .vide {
+  border: 3px solid var(--c, var(--cyan));
+  border-radius: 0;
+  box-shadow:
+    0 0 0 3px var(--nuit),
+    0 0 0 6px var(--c, var(--cyan)),
+    0 0 18px 4px color-mix(in srgb, var(--c, var(--cyan)) 45%, transparent);
 }
 
-.carte {
-  --c: var(--autre);
-  display: flex;
-  flex-direction: column;
-  background: var(--carte);
-  border: 2px solid var(--encre);
-  border-radius: 18px;
-  box-shadow: var(--ombre);
-  overflow: hidden;
-  color: inherit;
-  text-decoration: none;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-a.carte:hover { transform: translateY(-4px); box-shadow: 0 10px 0 rgba(31, 42, 68, 0.14); }
-
-.cat-calcul    { --c: var(--calcul); }
-.cat-logique   { --c: var(--logique); }
-.cat-geometrie { --c: var(--geometrie); }
-.cat-quiz      { --c: var(--quiz); }
-.cat-reflexe   { --c: var(--reflexe); }
-
-.carte-icone {
-  background: var(--c);
-  font-size: 3rem;
-  text-align: center;
-  padding: 1.2rem 0;
-  border-bottom: 2px solid var(--encre);
-}
-.carte-corps { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; flex: 1; }
-.etiquette {
-  align-self: flex-start;
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--c);
-  filter: brightness(0.8);
-}
-.carte h2 { font-family: "Fredoka", sans-serif; font-size: 1.35rem; margin: 0.25rem 0 0.3rem; }
-.carte p { color: var(--doux); margin: 0 0 1rem; flex: 1; }
-.carte-bas { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
-.niveau { font-size: 0.85rem; color: var(--doux); }
-.action {
-  background: var(--encre);
-  color: #fff;
-  border-radius: 999px;
-  padding: 0.3rem 0.9rem;
-  font-size: 0.9rem;
-}
-
-.carte.bientot { opacity: 0.6; }
-.carte.bientot .carte-icone { filter: grayscale(0.6); }
-.carte.bientot .action { background: transparent; color: var(--doux); border: 2px dashed var(--doux); }
-
-.vide { text-align: center; color: var(--doux); }
-
-/* --- Rejoindre une partie --- */
-.rejoindre { display: flex; justify-content: center; margin: 0 0 2rem; }
+/* ---------- Rejoindre une partie ---------- */
+.rejoindre { display: flex; justify-content: center; margin: 1rem 0 3rem; }
 .rejoindre form {
-  background: var(--carte);
-  border: 2px solid var(--encre);
-  border-radius: 18px;
-  box-shadow: var(--ombre);
-  padding: 1rem 1.2rem;
+  --c: var(--cyan);
+  background: rgba(5, 1, 15, 0.85);
+  padding: 1.4rem 1.4rem 1rem;
   text-align: center;
-  width: min(420px, 100%);
+  width: min(460px, 100%);
 }
-.rejoindre label { font-weight: 800; display: block; margin-bottom: 0.6rem; }
-.rejoindre .ligne { display: flex; gap: 0.5rem; }
+.rejoindre label {
+  font-family: var(--pixel);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  display: block;
+  margin-bottom: 1.1rem;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+.rejoindre .ligne { display: flex; gap: 1rem; }
 .rejoindre input {
+  --c: var(--rose);
   flex: 1;
   min-width: 0;
-  font: 700 1.4rem "Fredoka", sans-serif;
-  letter-spacing: 0.2em;
+  font: 1.2rem var(--pixel);
+  letter-spacing: 0.25em;
   text-align: center;
   text-transform: uppercase;
-  border: 2px solid var(--encre);
-  border-radius: 12px;
-  padding: 0.4rem;
-}
-.rejoindre button, .bouton {
-  font: 700 1rem "Nunito", sans-serif;
-  background: var(--encre);
+  padding: 0.6rem 0.4rem;
+  background: var(--nuit);
   color: #fff;
-  border: 0;
-  border-radius: 12px;
-  padding: 0.5rem 1.1rem;
+  caret-color: var(--rose);
+  outline: none;
+}
+.rejoindre input::placeholder { color: #4a3a66; }
+
+.rejoindre button, .bouton {
+  --c: var(--jaune);
+  font: 0.75rem var(--pixel);
+  text-transform: uppercase;
+  background: var(--jaune);
+  color: var(--nuit);
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  transition: transform 0.05s;
+}
+.rejoindre button:hover, .bouton:hover { background: #fff; }
+.rejoindre button:active, .bouton:active { transform: translate(2px, 2px); }
+
+.test-reseau { min-height: 1.2em; margin: 0.9rem 0 0; font-size: 1.1rem; color: var(--doux); }
+.test-reseau.ok { color: var(--vert); text-shadow: 0 0 6px var(--vert); }
+.test-reseau.ko { color: var(--rouge); text-shadow: 0 0 6px var(--rouge); }
+
+/* ---------- Filtres ---------- */
+.filtres { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.2rem; margin-bottom: 2.5rem; }
+.filtres:empty { display: none; }
+.filtre {
+  --c: var(--cyan);
+  font: 0.65rem var(--pixel);
+  text-transform: uppercase;
+  background: var(--nuit);
+  color: var(--cyan);
+  padding: 0.6rem 0.9rem;
   cursor: pointer;
 }
-.test-reseau { min-height: 1.2em; margin: 0.5rem 0 0; font-size: 0.95rem; color: var(--doux); }
-.test-reseau.ok { color: #138a5b; }
-.test-reseau.ko { color: #c0392b; }
+.filtre.actif, .filtre:hover { background: var(--cyan); color: var(--nuit); }
+
+/* ---------- Cartes de jeux ---------- */
+.grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 2rem; }
+.carte {
+  --c: var(--cyan);
+  display: flex;
+  flex-direction: column;
+  background: rgba(5, 1, 15, 0.9);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.08s steps(2);
+}
+a.carte:hover { transform: translate(-3px, -3px); }
+.cat-calcul    { --c: var(--orange); }
+.cat-logique   { --c: var(--rose); }
+.cat-geometrie { --c: var(--vert); }
+.cat-quiz      { --c: var(--jaune); }
+.cat-reflexe   { --c: var(--cyan); }
+
+.carte-icone {
+  font-size: 2.6rem;
+  text-align: center;
+  padding: 1.1rem 0;
+  border-bottom: 3px solid var(--c);
+  background: repeating-linear-gradient(90deg, transparent 0 7px, color-mix(in srgb, var(--c) 18%, transparent) 7px 8px);
+}
+.carte-corps { padding: 1rem; display: flex; flex-direction: column; flex: 1; }
+.etiquette { font: 0.55rem var(--pixel); text-transform: uppercase; color: var(--c); letter-spacing: 0.1em; }
+.carte h2 { font: 0.9rem/1.5 var(--pixel); margin: 0.7rem 0 0.5rem; color: #fff; }
+.carte p { color: var(--doux); margin: 0 0 1rem; flex: 1; }
+.carte-bas { display: flex; justify-content: space-between; align-items: center; }
+.niveau { color: var(--doux); }
+.action { font: 0.6rem var(--pixel); background: var(--c); color: var(--nuit); padding: 0.5rem 0.7rem; }
+.carte.bientot { opacity: 0.45; filter: grayscale(0.5); }
+.carte.bientot .action { background: transparent; color: var(--c); outline: 2px dashed var(--c); }
+
+/* ---------- Aucun jeu ---------- */
+.vide {
+  --c: var(--rose);
+  text-align: center;
+  background: rgba(5, 1, 15, 0.85);
+  padding: 2.2rem 1rem;
+  margin: 0 auto;
+  width: min(560px, 100%);
+}
+.vide strong {
+  display: block;
+  font: 1rem/1.6 var(--pixel);
+  color: var(--rose);
+  text-shadow: var(--halo-rose);
+  margin-bottom: 1rem;
+}
+.clignote { animation: clignote 1s steps(1) infinite; color: var(--jaune); font-family: var(--pixel); font-size: 0.7rem; }
+@keyframes clignote { 50% { opacity: 0; } }
+
+/* ---------- Pied de page ---------- */
+.pied { text-align: center; color: var(--doux); padding: 3rem 1rem 1.5rem; font-size: 1.1rem; }
 .lien {
-  background: none; border: 0; padding: 0;
-  font: inherit; color: var(--encre); text-decoration: underline; cursor: pointer;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: 0.6rem var(--pixel); text-transform: uppercase; color: var(--cyan); text-decoration: underline;
 }
 
-.pied { text-align: center; color: var(--doux); padding: 2.5rem 1rem 1.5rem; font-size: 0.9rem; }
+@media (prefers-reduced-motion: reduce) {
+  body::before, .logo, .clignote { animation: none; }
+}

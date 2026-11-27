@@ -5,35 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nouveau jeu — Rob</title>
   <link rel="stylesheet" href="../../style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
   <style>
     .zone-jeu {
-      background: #fff;
-      border: 2px solid var(--encre);
-      border-radius: 18px;
-      box-shadow: var(--ombre);
+      --c: var(--cyan);
+      background: rgba(5, 1, 15, 0.9);
       padding: 2rem;
       min-height: 50vh;
       text-align: center;
     }
-    .retour { display: inline-block; margin: 1.5rem 0 1rem; font-weight: 700; color: var(--encre); text-decoration: none; }
-    .gros-code { font: 700 3.5rem "Fredoka", sans-serif; letter-spacing: 0.2em; margin: 0.5rem 0; }
-    .qr svg { width: 200px; height: 200px; }
-    .joueurs { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
-    .joueurs li { background: var(--fond); border: 2px solid var(--encre); border-radius: 999px; padding: 0.3rem 0.9rem; font-weight: 700; }
-    input.nom { font: 700 1.2rem "Nunito", sans-serif; border: 2px solid var(--encre); border-radius: 12px; padding: 0.4rem 0.8rem; text-align: center; }
+    .zone-jeu h2 { font: 1rem/1.6 var(--pixel); color: var(--rose); text-shadow: var(--halo-rose); }
+    .retour { display: inline-block; margin: 1.5rem 0 1.5rem; font: 0.65rem var(--pixel); color: var(--cyan); text-decoration: none; text-transform: uppercase; }
+    .retour:hover { color: #fff; }
+    .gros-code { font: 3rem var(--pixel); letter-spacing: 0.2em; margin: 0.8rem 0 1.2rem; color: #fff; text-shadow: 4px 4px 0 var(--rose), var(--halo-cyan); }
+    .qr { display: inline-block; background: #fff; padding: 6px; box-shadow: 0 0 0 3px var(--cyan), 0 0 18px var(--cyan); }
+    .qr svg { width: 200px; height: 200px; display: block; }
+    .joueurs { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; }
+    .joueurs li { font: 0.65rem var(--pixel); color: var(--vert); border: 2px solid var(--vert); padding: 0.5rem 0.7rem; text-shadow: 0 0 6px var(--vert); }
+    input.nom { font: 0.9rem var(--pixel); background: var(--nuit); color: #fff; border: 3px solid var(--rose); padding: 0.6rem; text-align: center; margin: 0.5rem; outline: none; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
-    <a class="retour" href="../../">← Retour aux jeux</a>
+    <a class="retour" href="../../">◀ Retour</a>
 
     <div class="zone-jeu">
       <!-- ÉCRAN D'ACCUEIL DU JEU -->
       <section id="ecran-choix">
         <h2>Nouveau jeu</h2>
         <p>Modèle : copie ce dossier pour commencer un nouveau mini-jeu.</p>
-        <button class="bouton" id="btn-creer">Créer une partie (prof)</button>
+        <button class="bouton" id="btn-creer">Créer une partie</button>
       </section>
 
       <!-- ÉCRAN DU PROF (au tableau) -->
