@@ -49,6 +49,11 @@
     sol(m, 0, 12 * U, 0);
     m.reperes.push({ x: 0, g: 0 });
     m.xGen = 12 * U;
+    // Parties spéciales (À L'ENVERS ou VAISSEAU) tirées au hasard, séparées par du parcours normal :
+    // jamais deux fois la même à la suite, et le normal est en moyenne plus long que chacune d'elles.
+    m.speciales = true;
+    m.prochaineSpeciale = 60 + m.alea() * 90; // (en blocs)
+    m.derniereSpeciale = null;
     return m;
   }
 
@@ -136,20 +141,17 @@
         } else {
           const np = 1 + ((a() * 3) | 0);
           for (let i = 0; i < np; i++) pique(m, x + (cx + i) * U, yDe(g));
-          // une fois sur deux, une bulle de saut au-dessus des piques
-          if (a() < 0.5) {
-            m.bulles.push({ id: m.id++, x: x + (cx + np / 2) * U, y: yDe(g + 2.5) });
-            // environ une bulle sur trois a une boîte très haut : seulement avec le DOUBLE saut (bulle puis rappui)
-            // (0,64 car on en retire près de la moitié : pas de boîte à côté d'un bloc double)
-            if (a() < 0.64) hautes.push(x + (cx + np / 2 + DX_DOUBLE) * U);
-          }
+          // une bulle de saut seulement au-dessus de piques ENTRE deux blocs, et toujours avec une boîte
+          // très haut au-dessus (atteignable seulement avec le double saut : bulle puis rappui)
+          if (entreBlocs && a() < 0.6) hautes.push(x + (cx + np / 2) * U);
           // (pas de « ? » à la place d'une bulle : les boîtes de ce passage sont seulement au-dessus des bulles)
           cx += np;
         }
         typeBloc = !typeBloc;
       }
       // (pas de boîte du double saut à côté d'un bloc double : on l'attraperait d'un simple saut depuis dessus)
-      if (!double) hautes.forEach((bx) => boite(m, bx, g + H_DOUBLE));
+      // (pas à côté d'un bloc double : on attraperait la boîte d'un simple saut depuis dessus)
+      if (!double) hautes.forEach((bx) => { m.bulles.push({ id: m.id++, x: bx, y: yDe(g + 2.5) }); boite(m, bx + DX_DOUBLE * U, g + H_DOUBLE); });
       const l = Math.ceil(cx + 2);
       sol(m, x, x + l * U, g);
       return { l, g };
@@ -344,7 +346,7 @@
       sol(m, cx, cx + 3 * U, g);
       return { l: (cx - x) / U + 3, g };
     } },
-    { nom: "gravite", min: 300, poids: 2, possible: (g) => g <= 1, f(m, x, g, a) {
+    { nom: "gravite", min: 300, poids: 0, possible: (g) => g <= 1, f(m, x, g, a) { // (désactivé : une seule partie à l'envers par course)
       // un portail retourne le cube : il court au plafond (trous et piques), un second portail le remet à l'endroit
       const l = 34, yb = yDe(g) - 4.5 * U;
       sol(m, x, x + l * U, g);
@@ -361,7 +363,8 @@
       sol(m, x, x + l * U, g);
       solHaut(m, x + U, x + l * U, g);
       m.portails.push({ id: m.id++, x: x + 2 * U, haut: MIROIR - yDe(g), bas: yDe(g), grav: -1 });
-      m.envers = 4 + ((a() * 4) | 0);
+      m.envers = 1;
+      m.enversFin = x + (m.longEnvers || 120) * U - 12 * U; // fin de la partie à l'envers (avant la sortie)
       return { l, g };
     } },
     { nom: "tapis", min: 100, poids: 2, f(m, x, g, a) {
@@ -450,9 +453,10 @@
       m.portails.push({ id: m.id++, x: x + 3 * U, haut, bas: sol0, mode: "vaisseau" });
       let cx = x + 7 * U;
       const types = ["scies", "cubes", "serre", "lasers", "zigzag"];
-      const n = 4 + ((a() * 2) | 0);
+      // longueur voulue (en blocs) : un quart de la course quand c'est LA partie vaisseau
+      const longueur = m.longVaisseau || 100;
       let precedent = "";
-      for (let k = 0; k < n; k++) {
+      for (let k = 0; cx - x < (longueur - 30) * U; k++) {
         let t = types[(a() * types.length) | 0];
         if (t === precedent) t = types[(types.indexOf(t) + 1) % types.length];
         precedent = t;
@@ -493,7 +497,7 @@
         } else {
           // portes laser sur TOUTE la hauteur du couloir, avec deux ouvertures qui se ferment à tour de rôle
           const ph = a() * 6.283;
-          [3, 11].forEach((i, q) => {
+          [4].forEach((i, q) => { // UNE seule porte : une grande ouverture et une petite
             const f = ph + q * 1.9, lx = cx + i * U + 12;
             const seg = (n1, n2, extra) => m.lasers.push(Object.assign({ id: m.id++, x: lx, w: 6, y1: yN(n2), y2: yN(n1), P: 1.6, ph: f }, extra));
             // une GRANDE ouverture (2,8 blocs) et une PETITE (1,4 bloc), l'une en bas, l'autre en haut
@@ -507,7 +511,7 @@
             seg(b1, b1 + ob, { ph: f + Math.PI });     // ouverture du haut (fermée quand celle du bas est ouverte)
             seg(b1 + ob, 8, { toujours: true });
           });
-          cx += 15 * U;
+          cx += 9 * U;
         }
       }
       m.portails.push({ id: m.id++, x: cx + 2 * U, haut, bas: sol0, mode: "cube" });
@@ -581,15 +585,19 @@
         sol(m, m.xGen, m.xGen + 40 * U, m.g); m.xGen += 40 * U; break;
       }
       const envers = m.envers > 0;
-      const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)) && (envers ? ENVERS_OK.includes(c.nom) : true));
+      const speciaux = ["envers", "vaisseau"];
+      const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)) && (envers ? ENVERS_OK.includes(c.nom) : !(m.speciales && speciaux.includes(c.nom))));
       let r = m.alea() * dispo.reduce((s, c) => s + c.poids, 0), choix = dispo[0];
       for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
-      // il y a TOUJOURS au moins une partie à l'envers : si le hasard ne l'a pas encore amenée, on l'impose
-      if (!envers && !m.dejaEnvers && d >= 280) choix = MORCEAUX.find((c) => c.nom === "envers") || choix;
-      // … et toujours au moins un passage en vaisseau
-      if (!envers && !m.dejaVaisseau && m.dejaEnvers && d >= 550 && choix.nom !== "envers") choix = MORCEAUX.find((c) => c.nom === "vaisseau") || choix;
-      if (choix.nom === "envers") m.dejaEnvers = true;
-      if (choix.nom === "vaisseau") m.dejaVaisseau = true;
+      // partie spéciale ? (pas trop près de l'arrivée ; jamais la même que la précédente)
+      if (!envers && m.speciales && d >= m.prochaineSpeciale && m.fin / U - d > 90) {
+        const nom = m.derniereSpeciale === "vaisseau" ? "envers" : m.derniereSpeciale === "envers" ? "vaisseau" : m.alea() < 0.5 ? "envers" : "vaisseau";
+        const long = 60 + m.alea() * 90;                 // spéciale : 60 à 150 blocs (≈ 105 en moyenne)
+        m.derniereSpeciale = nom;
+        choix = MORCEAUX.find((c) => c.nom === nom);
+        if (nom === "vaisseau") m.longVaisseau = Math.round(long); else m.longEnvers = Math.round(long);
+        m.prochaineSpeciale = d + long + 90 + m.alea() * 120; // puis du normal : 90 à 210 blocs (≈ 150 en moyenne)
+      }
       m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
       const tm = envers ? mondeTemp(m) : m;
       const debut = tm.rects.length;
@@ -601,8 +609,8 @@
       const v = vitesseBase(m.xGen);
       const ecart = Math.max(0.12 * v, (2.5 - d / 1000) * U) + m.alea() * 1.2 * U;
       if (envers) {
-        m.envers--;
-        if (m.envers === 0) {
+        if (m.xGen >= m.enversFin) {
+          m.envers = 0;
           // sortie : un portail remet à l'endroit, on retombe sur un sol normal
           m.reperes.push({ x: m.xGen, g: m.g, nom: "sortie", inv: true });
           solHaut(m, m.xGen, m.xGen + 5 * U, m.g);
