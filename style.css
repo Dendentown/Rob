@@ -298,3 +298,61 @@ button.carte { font: inherit; color: inherit; text-align: left; cursor: pointer;
 @media (prefers-reduced-motion: reduce) {
   body::before, .logo, .clignote { animation: none; }
 }
+
+/* ============================================================
+   PAGES DE JEU (commun à Tetris, Snake, Flappy…)
+   ============================================================ */
+.page-jeu main { width: min(1000px, 100% - 1rem); }
+.page-jeu body::before, body.page-jeu::before { opacity: 0.22; }
+.tete-jeu { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin: 1.2rem 0 1rem; }
+.tete-jeu h1 { font-size: clamp(1.2rem, 5vw, 2rem); margin: 0; }
+.zone-jeu-arcade { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 1.5rem; }
+.cadre-jeu {
+  position: relative;
+  border: 3px solid var(--c, var(--cyan));
+  box-shadow: 0 0 0 3px var(--nuit), 0 0 0 6px var(--c, var(--cyan)), 0 0 24px 4px color-mix(in srgb, var(--c, var(--cyan)) 45%, transparent);
+  background: #000;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  line-height: 0;
+}
+.cadre-jeu canvas { display: block; image-rendering: pixelated; max-width: 100%; height: auto; }
+.cadre-jeu .overlay {
+  position: absolute; inset: 0; line-height: 1.4;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.1rem;
+  background: rgba(5, 1, 15, 0.82); text-align: center; padding: 1rem;
+}
+.cadre-jeu .overlay h2 { font: clamp(0.9rem, 4vw, 1.6rem)/1.5 var(--pixel); margin: 0; color: #fff; text-shadow: 3px 3px 0 var(--rose), var(--halo-cyan); }
+.cadre-jeu .overlay p { margin: 0; font-size: 1.25rem; }
+.panneau-lateral { display: flex; flex-direction: column; gap: 1.4rem; min-width: 150px; }
+.info-jeu { --c: var(--rose); border: 3px solid var(--c); padding: 0.8rem; background: rgba(5, 1, 15, 0.85); text-align: center; }
+.info-jeu .lib { font: 0.5rem var(--pixel); text-transform: uppercase; color: var(--c); display: block; margin-bottom: 0.5rem; }
+.info-jeu .val { font: 1.1rem var(--pixel); color: #fff; }
+.commandes-tactiles { display: none; gap: 0.7rem; justify-content: center; flex-wrap: wrap; margin: 1.2rem auto 0; max-width: 420px; }
+.commandes-tactiles button {
+  font: 1.3rem var(--pixel); width: 64px; height: 64px; padding: 0;
+  background: var(--nuit); color: var(--cyan); border: 3px solid var(--cyan); box-shadow: 0 0 10px rgba(25, 240, 255, 0.5);
+  touch-action: manipulation;
+}
+.commandes-tactiles button:active { background: var(--cyan); color: var(--nuit); }
+@media (pointer: coarse) { .commandes-tactiles { display: flex; } }
+.titre-section { font: 0.75rem var(--pixel); color: var(--jaune); text-transform: uppercase; text-align: center; margin: 2rem 0 1rem; }
+.bas-jeu { display: flex; flex-direction: column; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+.bas-jeu .zone-scores { width: min(560px, 100%); }
+
+/* Panneau « dans le lobby » (scores en direct) */
+.salle { width: min(560px, 100%); margin: 0 auto; }
+.salle ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.salle li { display: grid; grid-template-columns: 1fr 8em 6em; gap: 0.7rem; align-items: center; font-size: 1.25rem; border-bottom: 1px dashed #2a2140; padding: 0.3rem 0; }
+.salle li.moi .nom { color: var(--jaune); }
+.salle li.perdu .etat-salle { color: var(--rouge); }
+.salle .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.salle .etat-salle { font: 0.55rem var(--pixel); color: var(--vert); text-align: right; }
+.salle .record { text-align: right; color: var(--jaune); }
+@media (max-width: 700px) {
+  .panneau-lateral { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.8rem; min-width: 0; width: 100%; }
+  .info-jeu { padding: 0.5rem 0.7rem; min-width: 90px; }
+  .info-jeu .val { font-size: 0.85rem; }
+  .salle li { grid-template-columns: 1fr 7em 4.5em; font-size: 1.1rem; }
+}

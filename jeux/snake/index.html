@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Snake — Rob</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body class="page-jeu">
+  <main>
+    <div class="tete-jeu"><h1>SNAKE</h1></div>
+
+    <div class="zone-jeu-arcade">
+      <div class="cadre-jeu" style="--c: var(--vert)">
+        <canvas id="ecran" width="480" height="480"></canvas>
+        <div class="overlay" id="overlay">
+          <h2 id="ov-titre"></h2>
+          <p id="ov-texte"></p>
+          <button class="bouton" id="ov-bouton"></button>
+        </div>
+      </div>
+      <div class="panneau-lateral">
+        <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
+        <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Longueur</span><span class="val" id="longueur">0</span></div>
+        <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Vitesse</span><span class="val" id="vitesse">0</span></div>
+      </div>
+    </div>
+    <div class="commandes-tactiles" style="max-width:220px">
+      <span style="width:64px"></span><button data-dir="0,-1" aria-label="Haut">▲</button><span style="width:64px"></span>
+      <button data-dir="-1,0" aria-label="Gauche">◀</button><button data-dir="0,1" aria-label="Bas">▼</button><button data-dir="1,0" aria-label="Droite">▶</button>
+    </div>
+
+    <section class="salle" id="salle" hidden>
+      <p class="titre-section">👥 Dans le lobby</p>
+      <ul id="liste-salle"></ul>
+    </section>
+
+    <div class="bas-jeu">
+      <button id="btn-quitter" class="lien">◀ Menu</button>
+      <p class="titre-section">🏆 Classement Snake</p>
+      <div id="classement" class="zone-scores" style="--c: var(--jaune)"></div>
+      <p class="aide">Score : 10 par fruit, 50 par fruit doré. Le serpent accélère à chaque fruit.</p>
+    </div>
+  </main>
+
+  <script src="../../lib/firebase-app-compat.js"></script>
+  <script src="../../lib/firebase-database-compat.js"></script>
+  <script src="../../lib/qrcode.js"></script>
+  <script src="../../commun/reseau.js"></script>
+  <script src="../../jeux.js"></script>
+  <script src="../../commun/scores.js"></script>
+  <script src="../../commun/salle.js"></script>
+  <script src="snake.js"></script>
+</body>
+</html>

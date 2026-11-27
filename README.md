@@ -42,6 +42,11 @@ commun/reseau.js      ⭐ lobby + connexion Firebase
 commun/scores.js      ⭐ scores et classements
 lib/                  bibliothèques Firebase + QR code (en local)
 jeux/pong/            🏓 Pong
+jeux/demineur/        💣 Démineur
+jeux/tetris/          🧱 Tetris
+jeux/snake/           🐍 Snake
+jeux/flappy/          🐤 Flappy Bird
+commun/salle.js       panneau « dans le lobby » des jeux où chacun joue de son côté
 jeux/_modele/         modèle de jeu (joueurs déjà connectés, tableau des scores)
 database.rules.json   règles Firebase à copier dans la console
 404.html              « GAME OVER »
@@ -57,6 +62,19 @@ database.rules.json   règles Firebase à copier dans la console
 - **Vitesse de la balle** : `v(n) = V0 × (1 + 0,45 × ln(1 + n))`, n = nombre de renvois depuis le début de l'échange. Croissance logarithmique, sans maximum : ×1,8 après 5 renvois, ×2,1 après 10, ×2,5 après 30, ×3,1 après 100.
 - Le bot vise de moins en moins bien quand la balle accélère : il finit par rater.
 - **Score d'une partie** : 100 par point marqué + le plus long échange.
+
+### 💣 Démineur
+- 3 niveaux : Débutant 9×9 (10 mines), Intermédiaire 16×16 (40), Expert 30×16 (99).
+- **Seul** : le premier clic n'est jamais une mine.
+- **Dans le lobby : course.** L'hôte choisit le niveau et lance une manche ; tout le monde reçoit la même grille, avec une case de départ sûre qui clignote. Progression de chacun en direct, podium. 🙂 relance une manche.
+- Drapeau : clic droit, appui long, ou bouton « mode drapeau ». Clic sur un chiffre entouré de ses drapeaux : ouvre les cases autour.
+- **Score d'une victoire** : points du niveau × 60 / (60 + secondes) — Débutant 1000, Intermédiaire 3000, Expert 8000. Une défaite compte comme une partie à 0.
+
+### 🧱 Tetris · 🐍 Snake · 🐤 Flappy Bird
+Chacun joue sa propre partie. Dans un lobby, le panneau « Dans le lobby » montre en direct le score de chaque joueur et son record.
+- **Tetris** : 7 pièces (tirage par sac), pièce fantôme, pièce suivante. Chute : 800 ms × 0,85^(niveau − 1) ; niveau + 1 toutes les 10 lignes. Score : 100 / 300 / 500 / 800 × niveau pour 1 / 2 / 3 / 4 lignes, + 1 par case en descente rapide, + 2 en chute directe. Clavier ← → ↑ ↓ Espace P ; boutons à l'écran sur téléphone.
+- **Snake** : grille 24×24, un pas toutes les 140 ms × 0,97^fruits (min 55 ms). 10 points par fruit, 50 par fruit doré (apparaît parfois, 5 s). Flèches / ZQSD, ou glisser le doigt.
+- **Flappy Bird** : 1 point par tuyau. Défilement 170 × (1 + 0,12 × ln(1 + score)) px/s, écart des tuyaux de 165 à 125 px. Clic, tap ou Espace.
 
 ## Ajouter un jeu
 
