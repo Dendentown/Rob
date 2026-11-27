@@ -476,7 +476,7 @@
   const vitesseJoueur = (j) => j.v;
 
   // ---------- Pièges animés (leur état dépend du temps du joueur et de ce qu'il a déclenché) ----------
-  const CHUTE_DELAI = 0.55, FRAGILE_DELAI = 0.3, PORTE_ATTENTE = 1.0;
+  const CHUTE_DELAI = 0.55, FRAGILE_DELAI = 0.3, PORTE_ATTENTE = 0.4;
   function yTombant(o, j) { // haut du cube qui tombe
     const t0 = j.trig[o.id];
     if (t0 == null) return o.y0;

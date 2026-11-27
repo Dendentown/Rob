@@ -490,7 +490,7 @@
       for (let y = bas - 20; y > 0; y -= 20) ctx.fillRect(X, y, o.w, 2);
       ctx.shadowBlur = 0;
       const att = j.attente[o.id] || 0;
-      if (t0 == null && att > 0) { ctx.fillStyle = "#3dff7a"; ctx.fillRect(X - 6, bas - 30 - att * 40, 3, att * 40); }
+      if (t0 == null && att > 0) { ctx.fillStyle = "#3dff7a"; ctx.fillRect(X - 6, bas - 30 - att * 100, 3, att * 100); }
     });
     monde.boutons.forEach((o) => {
       if (!visible(o)) return;
