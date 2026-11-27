@@ -107,4 +107,13 @@ const JEUX = [
     dossier: "dash",
     statut: "disponible",
   },
+  {
+    titre: "Horde",
+    description: "Survis le plus longtemps possible face aux vagues de monstres.",
+    categorie: "reflexe",
+    icone: "⚔️",
+    niveau: "Tous niveaux",
+    dossier: "horde",
+    statut: "disponible",
+  },
 ];

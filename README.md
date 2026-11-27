@@ -46,6 +46,12 @@ jeux/demineur/        💣 Démineur
 jeux/tetris/          🧱 Tetris
 jeux/snake/           🐍 Snake
 jeux/flappy/          🐤 Flappy Bird
+jeux/invaders/        👾 Space Invaders
+jeux/breakout/        🧱 Breakout
+jeux/labyrinthe/      🤖 Labyrinthe
+jeux/dash/            🔷 Néon Dash
+jeux/horde/           ⚔️ Horde
+commun/page.js        terrain ajusté à l'écran + fenêtre du classement
 commun/salle.js       panneau « dans le lobby » des jeux où chacun joue de son côté
 jeux/_modele/         modèle de jeu (joueurs déjà connectés, tableau des scores)
 database.rules.json   règles Firebase à copier dans la console
@@ -75,6 +81,14 @@ Chacun joue sa propre partie. Dans un lobby, le panneau « Dans le lobby » mont
 - **Tetris** : 7 pièces (tirage par sac), pièce fantôme, pièce suivante. Chute : 800 ms × 0,85^(niveau − 1) ; niveau + 1 toutes les 10 lignes. Score : 100 / 300 / 500 / 800 × niveau pour 1 / 2 / 3 / 4 lignes, + 1 par case en descente rapide, + 2 en chute directe. Clavier ← → ↑ ↓ Espace P ; boutons à l'écran sur téléphone.
 - **Snake** : grille 24×24, un pas toutes les 140 ms × 0,97^fruits (min 55 ms). 10 points par fruit, 50 par fruit doré (apparaît parfois, 5 s). Flèches / ZQSD, ou glisser le doigt.
 - **Flappy Bird** : 1 point par tuyau. Défilement 170 × (1 + 0,12 × ln(1 + score)) px/s, écart des tuyaux de 165 à 125 px. Clic, tap ou Espace.
+
+### 👾 Space Invaders · 🧱 Breakout · 🤖 Labyrinthe · 🔷 Néon Dash · ⚔️ Horde
+Chacun joue sa partie (panneau « Dans le lobby » en direct). Personnages et décors originaux.
+- **Space Invaders** : 55 envahisseurs qui accélèrent quand ils sont moins nombreux, 4 boucliers destructibles, soucoupe bonus (50 à 300), 3 vies, vagues de plus en plus basses et rapides. Points 30 / 20 / 10 selon le rang.
+- **Breakout** : 8 rangées de briques (70 / 50 / 30 / 10). Vitesse de la balle 300 × (1 + 0,3 ln(1 + rebonds)) × (1 + 0,08 (niveau − 1)). 3 vies.
+- **Labyrinthe** : Rob le robot ramasse 181 gommes (10) et 4 super-gommes (50) ; 4 bugs (poursuite, embuscade, hasard, timide) ; bugs mangés : 200 / 400 / 800 / 1600. Labyrinthe original 19 × 21 avec tunnel.
+- **Néon Dash** : un cube avance seul ; sauter (on peut garder appuyé) au-dessus des piques et des trous, monter sur les blocs ; tremplins et anneaux. Parcours infini généré, vérifié franchissable par simulation. Score = distance en mètres.
+- **Horde** : survivre aux vagues de monstres ; armes automatiques (Rayon, Orbes, Onde, Éclair) et bonus (Vitesse, Vie, Aimant, Puissance, Cadence) à choisir parmi 3 à chaque niveau. Score = 5 par seconde + 1 par monstre.
 
 ## Ajouter un jeu
 

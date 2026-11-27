@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Horde — Rob</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body class="page-jeu">
+  <header class="barre-jeu">
+    <button id="btn-quitter" class="icone" aria-label="Quitter" title="Menu">◀</button>
+    <h1 class="titre">HORDE</h1>
+    <button id="btn-classement" class="icone" style="--c: var(--jaune)" aria-label="Classement" title="Classement">🏆</button>
+  </header>
+
+  <div class="corps-jeu">
+    <div class="zone-cadre">
+      <div class="cadre-jeu" id="terrain" data-ratio="800/500" style="--c: var(--rouge)">
+        <canvas id="ecran" width="800" height="500"></canvas>
+        <div class="overlay" id="overlay">
+          <h2 id="ov-titre"></h2>
+          <p id="ov-texte"></p>
+          <button class="bouton" id="ov-bouton"></button>
+          <div class="tuiles" id="ov-choix" hidden style="width: min(460px, 92%); grid-template-columns: repeat(3, minmax(0, 1fr))"></div>
+        </div>
+      </div>
+    </div>
+    <aside class="panneau-lateral">
+      <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
+      <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Temps</span><span class="val" id="temps">0</span></div>
+      <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Niveau</span><span class="val" id="niveau">0</span></div>
+      <ul class="salle" id="liste-salle" hidden></ul>
+    </aside>
+  </div>
+  <div class="modal" id="modal-classement" hidden>
+    <div class="modal-boite">
+      <div class="barre-ecran"><h2 class="titre">🏆 HORDE</h2><button class="icone" data-fermer aria-label="Fermer">✕</button></div>
+      <div id="classement"></div>
+    </div>
+  </div>
+
+  <script src="../../lib/firebase-app-compat.js"></script>
+  <script src="../../lib/firebase-database-compat.js"></script>
+  <script src="../../lib/qrcode.js"></script>
+  <script src="../../commun/reseau.js"></script>
+  <script src="../../jeux.js"></script>
+  <script src="../../commun/scores.js"></script>
+  <script src="../../commun/salle.js"></script>
+  <script src="../../commun/page.js"></script>
+  <script src="horde.js"></script>
+</body>
+</html>
