@@ -11,6 +11,7 @@
      anneau au-dessus du vide, double chemin (haut / bas).
    Le sol a plusieurs hauteurs (niveaux 0 à 3).
    Des boîtes « ? » sont semées sur le parcours.
+   On ne meurt jamais : les erreurs ralentissent ou bloquent (voir etape).
    ============================================================ */
 (function (racine) {
   const U = 30, SOL = 360, H = 450, X_CUBE = 180;
@@ -144,13 +145,13 @@
       const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)));
       let r = m.alea() * dispo.reduce((s, c) => s + c.poids, 0), choix = dispo[0];
       for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
-      m.reperes.push({ x: m.xGen, g: m.g });
+      m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom });
       const res = choix.f(m, m.xGen, m.g, m.alea);
       m.xGen += res.l * U; m.g = res.g;
-      // sol plat entre deux morceaux : au moins un saut de long, pour toujours pouvoir retomber
-      const v = vitesseBase(m.xGen) * 1.05;
-      const ecart = Math.max(0.7 * v, (8 - d / 600) * U) + m.alea() * 3 * U;
-      m.reperes.push({ x: m.xGen, g: m.g });
+      // sol plat entre deux morceaux, court : on ne meurt pas, les obstacles peuvent être serrés
+      const v = vitesseBase(m.xGen);
+      const ecart = Math.max(0.35 * v, (5 - d / 800) * U) + m.alea() * 2 * U;
+      m.reperes.push({ x: m.xGen, g: m.g, nom: "plat" });
       sol(m, m.xGen, m.xGen + ecart, m.g);
       m.xGen += ecart;
     }
@@ -165,42 +166,51 @@
   }
 
   // ---------- Joueur ----------
+  // On ne meurt jamais : une erreur fait perdre de la vitesse ou du temps.
+  //   pique         → on trébuche : vitesse × 0,25, petit rebond, 0,7 s sans nouveau choc
+  //   mur / bloc    → on est bloqué contre (vitesse 0) jusqu'à ce qu'on saute par-dessus
+  //   trou          → on repart du dernier point de reprise (temps perdu)
+  // La vitesse remonte toute seule (accélération), jusqu'à la vitesse de croisière.
+  const ACCEL = 520;
   function nouveauJoueur() {
-    return { x: 0, y: yDe(0) - U, vy: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, anneaux: [], flaques: [], boites: [] };
+    return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0, anneaux: [], flaques: [], boites: [] };
   }
 
   // point de reprise : le dernier repère derrière le joueur
-  function reprise(j, m) {
-    const r = m.reperes.filter((p) => p.x <= j.x - U).pop() || m.reperes[0] || { x: 0, g: 0 };
-    Object.assign(j, { x: r.x + 2, y: yDe(r.g) - U, vy: 0, sol: true, rot: 0, stun: 0 });
+  function reprise(j, m, x) {
+    const ref = x == null ? j.x - U : x;
+    const r = m.reperes.filter((p) => p.x <= ref).pop() || m.reperes[0] || { x: 0, g: 0 };
+    Object.assign(j, { x: r.x + 2, y: yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0 });
   }
 
-  const vitesseJoueur = (j) => (j.stun > 0 ? 0 : vitesseBase(j.x) * (j.boost > 0 ? 1.5 : 1) * (j.lent > 0 ? 0.6 : 1));
+  const vitesseCroisiere = (j) => vitesseBase(j.x) * (j.boost > 0 ? 1.5 : 1) * (j.lent > 0 ? 0.6 : 1);
+  const vitesseJoueur = (j) => j.v;
 
-  // Un pas de physique. Renvoie la liste des événements : "mort", "bouclier", "boite", "glisse", "fini"…
+  // Un pas de physique. Renvoie la liste des événements : "choc", "bloque", "chute", "bouclier", "boite", "glisse", "fini"…
   function etape(j, m, dt, appui) {
     const ev = [];
-    ["boost", "lent", "stun"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
+    ["boost", "lent", "stun", "inv"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
+    // vitesse horizontale : remonte vers la vitesse de croisière
+    const cible = j.stun > 0 ? 0 : vitesseCroisiere(j);
+    if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * dt);
+    else j.v = Math.max(cible, j.v - ACCEL * 2 * dt);
     if (appui && j.sol && j.stun <= 0) { j.vy = SAUT; j.sol = false; }
     const xa = j.x, ya = j.y;
-    j.x += vitesseJoueur(j) * dt;
+    j.x += j.v * dt;
     j.vy += G * dt; j.y += j.vy * dt;
     j.sol = false;
 
-    const gx = j.x + 2, dx = j.x + U - 2;
     for (const r of m.rects) {
-      if (r.detruit || r.x > dx || r.x + r.w < gx) continue;
+      if (r.detruit) continue;
+      const gx = j.x + 2, dx = j.x + U - 2;
+      if (r.x > dx || r.x + r.w < gx) continue;
       if (j.y + U <= r.y || j.y >= r.y + r.h) continue;
       if (ya + U <= r.y + 10 && j.vy >= 0) { j.y = r.y - U; j.vy = 0; j.sol = true; continue; }     // atterrit dessus
       if (ya >= r.y + r.h - 10 && j.vy < 0) { j.y = r.y + r.h; j.vy = 0; continue; }                // se cogne dessous
-      // de côté
+      // de côté : le turbo casse les blocs, sinon on est bloqué contre
       if (r.type !== "sol" && j.boost > 0) { r.detruit = true; ev.push("casse"); continue; }
-      if (j.bouclier) {
-        j.bouclier = false; ev.push("bouclier");
-        if (r.type !== "sol") r.detruit = true; else { j.y = r.y - U; j.vy = 0; j.sol = true; }
-        continue;
-      }
-      ev.push("mort"); return ev;
+      j.x = Math.min(j.x, r.x - U + 1); j.v = 0;
+      if (!ev.includes("bloque")) ev.push("bloque");
     }
     for (const p of m.piques) {
       if (p.detruit || p.x > j.x + U || p.x + U < j.x) continue;
@@ -209,13 +219,16 @@
       const hy1 = p.bas ? p.y : p.y - U + 12, hy2 = p.bas ? p.y + U - 12 : p.y;
       if (j.x + U - 6 > hx1 && j.x + 6 < hx2 && j.y + U > hy1 && j.y < hy2) {
         if (j.boost > 0) { p.detruit = true; ev.push("casse"); continue; }
+        if (j.inv > 0) continue;
         if (j.bouclier) { j.bouclier = false; p.detruit = true; ev.push("bouclier"); continue; }
-        ev.push("mort"); return ev;
+        j.v *= 0.25; j.inv = 0.7;
+        j.vy = p.bas ? Math.max(j.vy, 250) : Math.min(j.vy, -380); // pique du plafond : on est renvoyé vers le bas
+        ev.push("choc");
       }
     }
     if (j.y > H) {
       if (j.bouclier) { j.bouclier = false; j.vy = SAUT_TREMPLIN * 1.1; j.y = H - 1; ev.push("bouclier"); }
-      else { ev.push("mort"); return ev; }
+      else { reprise(j, m, xa - U); j.stun = 0.35; ev.push("chute"); return ev; }
     }
     for (const t of m.tremplins) {
       if (t.x > j.x + U || t.x + U < j.x) continue;
@@ -231,7 +244,10 @@
     }
     for (const f of m.flaques) {
       if (j.flaques.includes(f.id) || !j.sol) continue;
-      if (j.x + U > f.x && j.x < f.x + 2 * U && Math.abs(j.y + U - f.y) < 4) { j.flaques.push(f.id); j.stun = 1.1; ev.push("glisse"); }
+      if (j.x + U > f.x && j.x < f.x + 2 * U && Math.abs(j.y + U - f.y) < 4) {
+        j.flaques.push(f.id);
+        if (j.bouclier) { j.bouclier = false; ev.push("bouclier"); } else { j.stun = 1.1; j.v = 0; ev.push("glisse"); }
+      }
     }
     if (j.sol) j.rot = Math.round(j.rot / (Math.PI / 2)) * (Math.PI / 2);
     else j.rot += dt * 7.5;
@@ -254,7 +270,7 @@
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, vitesseBase, vitesseJoueur, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, reprise, etape, laser, solSous, MORCEAUX };
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, reprise, etape, laser, solSous, MORCEAUX };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
 })(typeof window !== "undefined" ? window : globalThis);

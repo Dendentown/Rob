@@ -1,25 +1,28 @@
 /* ============================================================
-   NÉON DASH
-   Le cube avance tout seul : on saute (clic, tap, Espace — on peut
-   garder appuyé). Parcours généré au hasard (voir moteur.js) :
+   NÉON DASH — course façon « speed runner »
+   Le cube accélère tout seul ; on saute (clic, tap, Espace — on peut
+   garder appuyé). ON NE MEURT JAMAIS : une erreur fait perdre du temps.
+     pique → on trébuche (vitesse × 0,25)   mur / bloc → bloqué contre
+     trou → retour au dernier point de reprise
+   Parcours généré au hasard (voir moteur.js), obstacles serrés :
    montées, descentes, trous, plafonds à piques, tunnels, plateformes,
    tremplins, anneaux, doubles chemins.
 
-   BOÎTES « ? » : elles donnent un objet (un seul à la fois), à utiliser
-   avec le bouton en bas à droite (ou E / Maj / Entrée) :
+   BOÎTES « ? » : un objet à la fois, à utiliser avec le bouton en bas
+   à droite (ou E / Maj / Entrée) :
      T turbo (plus vite et casse les obstacles)   B bouclier (encaisse
-     un choc, ou fait rebondir au-dessus d'un trou)   L laser (détruit
-     les obstacles devant)
-   En COURSE, deux objets de plus contre les autres :
+     un choc, une flaque, un grappin… ou fait rebondir au-dessus d'un
+     trou)   L laser (détruit les obstacles devant)
+   En COURSE, des objets contre les autres :
      R ralentir (tous les autres pendant 3 s)
-     F flaque d'eau (posée par terre : qui passe dessus glisse et reste
-     immobilisé 1 s)
-   et le laser immobilise aussi les joueurs juste devant (1,2 s).
+     F flaque d'eau (qui passe dessus glisse : immobilisé 1 s)
+     G grappin (attrape le joueur le plus proche devant, le ramène
+       derrière toi, et toi tu es propulsé en avant)
+     et le laser immobilise aussi les joueurs juste devant (1,2 s).
 
-   SOLO : parcours infini, score = distance en mètres (1 bloc = 1 m).
-   COURSE (lobby) : l'hôte lance, tout le monde reçoit le même parcours
-   (même graine). Les autres apparaissent en fantômes. Si on tombe, on
-   repart du dernier point de reprise. Premier arrivé gagne.
+   SOLO : contre-la-montre sur 600 blocs. Score = 100 000 / temps (s).
+   COURSE (lobby) : l'hôte lance, même parcours pour tous (même graine),
+   les autres en fantômes, premier arrivé gagne.
    ============================================================ */
 (function () {
   const JEU = "dash";
@@ -30,40 +33,43 @@
   const COULEURS = ["#19f0ff", "#ff2bd6", "#3dff7a", "#ffe14d", "#ff8a1f", "#b388ff", "#ff3b3b", "#ffffff"];
   const OBJETS = {
     turbo: { lettre: "T", c: "#ff8a1f" }, bouclier: { lettre: "B", c: "#3dff7a" }, laser: { lettre: "L", c: "#ff2bd6" },
-    ralentir: { lettre: "R", c: "#b388ff" }, flaque: { lettre: "F", c: "#19f0ff" },
+    ralentir: { lettre: "R", c: "#b388ff" }, flaque: { lettre: "F", c: "#19f0ff" }, grappin: { lettre: "G", c: "#ffe14d" },
   };
   const canvas = document.querySelector("#ecran");
   const ctx = canvas.getContext("2d");
   const $ = (s) => document.querySelector(s);
 
-  // etat : "menu" | "compte" (3,2,1) | "jeu" | "mort" (attente avant reprise, en course) | "arrive" | "fini"
+  // etat : "menu" | "compte" (3,2,1) | "jeu" | "arrive"
   let mode = "menu", etat = "menu";
-  let monde = null, j = null, appui = false, objet = null, particules = [], rayons = [], chronoMort = 0, compte = 0;
-  let course = null, depart = 0, temps = 0, autres = {}, maCouleur = 0;
+  let monde = null, j = null, appui = false, objet = null, particules = [], rayons = [], compte = 0;
+  let course = null, depart = 0, temps = 0, autres = {}, maCouleur = 0, liens = [], secousse = 0;
 
   const score = () => Math.floor((j ? j.x : 0) / U);
+  const COURSE_OBJETS = ["turbo", "bouclier", "laser", "ralentir", "flaque", "grappin", "laser", "ralentir", "flaque", "grappin"];
 
   // ---------- Solo ----------
   function nouvellePartie() {
     mode = "solo";
-    monde = M.creerMonde((Math.random() * 2 ** 31) | 0);
+    course = { id: 0, longueur: LONGUEUR_COURSE };
+    monde = M.creerMonde((Math.random() * 2 ** 31) | 0, { longueur: LONGUEUR_COURSE });
     j = M.nouveauJoueur();
-    objet = null; particules = []; rayons = [];
-    etat = "jeu";
+    objet = null; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
+    etat = "compte"; compte = 3;
     $("#overlay").hidden = true;
     majBoutonObjet();
     Salle.publier(0, "jeu", true);
   }
+  const pointsSolo = (t) => Math.round(100000 / Math.max(1, t));
 
   // ---------- Commandes ----------
   function presser() { if (etat === "jeu") appui = true; }
   addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
-    if (["e", "shift", "enter", "arrowright"].includes(k)) { e.preventDefault(); if (etat !== "fini" && etat !== "menu") utiliserObjet(); return; }
+    if (["e", "shift", "enter", "arrowright"].includes(k)) { e.preventDefault(); utiliserObjet(); return; }
     if (e.repeat) return;
     if (k === " " || k === "arrowup" || k === "z" || k === "w") {
       e.preventDefault();
-      if ((etat === "menu" || etat === "fini") && mode !== "course" && Coop.role !== "hote") nouvellePartie(); else presser();
+      if ((etat === "menu" || (etat === "arrive" && mode === "solo")) && Coop.role !== "hote") nouvellePartie(); else presser();
     }
   });
   addEventListener("keyup", (e) => { const k = e.key.toLowerCase(); if (k === " " || k === "arrowup" || k === "z" || k === "w") appui = false; });
@@ -75,7 +81,7 @@
   // ---------- Objets ----------
   function donnerObjet() {
     if (objet) return;
-    const liste = mode === "course" ? ["turbo", "bouclier", "laser", "ralentir", "flaque", "laser", "ralentir", "flaque"] : ["turbo", "bouclier", "laser"];
+    const liste = mode === "course" ? COURSE_OBJETS : ["turbo", "bouclier", "laser"];
     objet = liste[(Math.random() * liste.length) | 0];
     majBoutonObjet();
   }
@@ -86,9 +92,17 @@
     b.disabled = !objet;
   }
   function utiliserObjet() {
-    if (!objet || !j || (etat !== "jeu" && etat !== "compte")) return;
-    if (etat === "compte") return;
-    const o = objet; objet = null; majBoutonObjet();
+    if (!objet || !j || etat !== "jeu") return;
+    const o = objet;
+    if (o === "grappin") {
+      // le joueur le plus proche devant, à moins de 15 blocs
+      const cible = Object.entries(autres).filter(([, d]) => d.d > j.x && d.d - j.x < 15 * U && d.e !== "arrive").sort((a, b) => a[1].d - b[1].d)[0];
+      if (!cible) { eclat(X_CUBE + U / 2, j.y, "#ffe14d", 4); return; } // personne à portée : on garde l'objet
+      liens.push({ de: X_CUBE + U / 2, dy: j.y + U / 2, vers: cible[1].d, vy: cible[1].y + U / 2, t: 0.4 });
+      evenement("grappin", { cible: cible[0], d: j.x });
+      j.v = M.vitesseCroisiere(j) * 1.8; j.boost = Math.max(j.boost, 0.8);
+    }
+    objet = null; majBoutonObjet();
     if (o === "turbo") j.boost = 2.5;
     if (o === "bouclier") j.bouclier = true;
     if (o === "laser") {
@@ -114,23 +128,26 @@
     if (ev.includes("bouclier")) eclat(X_CUBE + U / 2, j.y + U / 2, "#3dff7a", 16);
     if (ev.includes("casse")) eclat(X_CUBE + U, j.y + U / 2, "#ff8a1f", 10);
     if (ev.includes("glisse")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 12);
-    if (ev.includes("mort")) return mourir();
+    if (ev.includes("choc")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 12); secousse = 0.15; }
+    if (ev.includes("bloque") && Math.random() < 0.15) eclat(X_CUBE + U, j.y + U / 2, "#19f0ff", 2);
+    if (ev.includes("chute")) { eclat(X_CUBE + U / 2, j.y + U / 2, COULEURS[maCouleur], 20); secousse = 0.25; }
     if (j.sol && Math.random() < 0.6) particules.push({ x: X_CUBE, y: j.y + U - 2, vx: -150, vy: -Math.random() * 60, t: 0.3, c: j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur] });
+    temps = (performance.now() - depart) / 1000;
     if (mode === "course") {
-      temps = (performance.now() - depart) / 1000;
       if (ev.includes("fini")) arriver();
       publierPosition();
-    } else Salle.publier(score(), "jeu");
+    } else {
+      Salle.publier(score(), "jeu");
+      if (ev.includes("fini")) finSolo();
+    }
   }
 
-  function mourir() {
-    eclat(X_CUBE + U / 2, j.y + U / 2, COULEURS[maCouleur], 30);
-    eclat(X_CUBE + U / 2, j.y + U / 2, "#ffffff", 10);
-    if (mode === "course") { etat = "mort"; chronoMort = 0.8; return; }
-    etat = "fini";
-    Salle.publier(score(), "fini");
-    Scores.enregistrer(JEU, score(), Salle.pseudo()).catch(() => {});
-    setTimeout(() => menu("GAME OVER", score() + " m"), 600);
+  function finSolo() {
+    etat = "arrive";
+    const pts = pointsSolo(temps);
+    Salle.publier(pts, "fini");
+    Scores.enregistrer(JEU, pts, Salle.pseudo()).catch(() => {});
+    menu("ARRIVÉE", temps.toFixed(1) + " s · " + pts);
   }
 
   // ---------- Course (réseau) ----------
@@ -145,7 +162,7 @@
     base.child("ici").on("value", (s) => {
       presents = Object.entries(s.val() || {}).map(([id, v]) => ({ id, nom: v.nom })).sort((a, b) => (a.id < b.id ? -1 : 1));
       maCouleur = Math.max(0, presents.findIndex((p) => p.id === session.id)) % COULEURS.length;
-      if (etat === "menu" || etat === "fini") menu($("#ov-titre").textContent, $("#ov-texte").textContent);
+      if (etat === "menu" || (etat === "arrive" && mode === "solo")) menu($("#ov-titre").textContent, $("#ov-texte").textContent);
     });
     base.child("course").on("value", (s) => {
       const c = Reseau.dec(s.val());
@@ -172,7 +189,7 @@
     course = c; mode = "course";
     monde = M.creerMonde(c.graine, { longueur: c.longueur, course: true });
     j = M.nouveauJoueur();
-    objet = null; particules = []; rayons = []; autres = {}; temps = 0;
+    objet = null; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
     majBoutonObjet();
     etat = "compte"; compte = 3;
     $("#overlay").hidden = true;
@@ -206,8 +223,22 @@
       return;
     }
     if (e.de === session.id) return;
-    if (e.type === "ralentir") { j.lent = 3; eclat(X_CUBE + U / 2, j.y, "#b388ff", 12); }
-    if (e.type === "laser" && j.x > e.d && j.x < e.d + 12 * U) { j.stun = 1.2; eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 16); }
+    if (e.type === "ralentir") { if (j.bouclier) j.bouclier = false; else j.lent = 3; eclat(X_CUBE + U / 2, j.y, "#b388ff", 12); }
+    if (e.type === "laser" && j.x > e.d && j.x < e.d + 12 * U) {
+      if (j.bouclier) j.bouclier = false; else { j.stun = 1.2; j.v = 0; }
+      eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 16);
+    }
+    if (e.type === "grappin" && e.cible === session.id && etat === "jeu") {
+      const lanceur = autres[e.de];
+      liens.push({ de: X_CUBE + U / 2, dy: j.y + U / 2, vers: e.d, vy: lanceur ? lanceur.y + U / 2 : j.y, t: 0.4, inverse: true });
+      if (j.bouclier) { j.bouclier = false; eclat(X_CUBE + U / 2, j.y + U / 2, "#3dff7a", 16); return; }
+      // ramené derrière le lanceur (sur du sol, sinon au point de reprise)
+      const x = e.d - 2 * U, ySol = M.solSous(monde, x + U / 2);
+      if (ySol != null) Object.assign(j, { x, y: ySol - U, vy: 0, v: 0, sol: true });
+      else M.reprise(j, monde, x);
+      j.stun = 0.5; secousse = 0.3;
+      eclat(X_CUBE + U / 2, j.y + U / 2, "#ffe14d", 20);
+    }
   }
 
   function arriver() {
@@ -271,7 +302,9 @@
   }
 
   function dessiner(t) {
-    ctx.fillStyle = teinte(); ctx.fillRect(0, 0, W, H);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (secousse > 0) ctx.translate((Math.random() - 0.5) * 8 * secousse / 0.3, (Math.random() - 0.5) * 8 * secousse / 0.3);
+    ctx.fillStyle = teinte(); ctx.fillRect(-10, -10, W + 20, H + 20);
     ctx.fillStyle = "rgba(255, 43, 214, 0.12)";
     const gx = ((j ? j.x : 0) * 0.3) % 60;
     for (let x = -gx; x < W; x += 60) ctx.fillRect(x, 0, 1, H);
@@ -348,6 +381,12 @@
       ctx.fillRect(versEcran(r.x1), r.y - 3, r.x2 - r.x1, 6); ctx.fillStyle = "#fff"; ctx.fillRect(versEcran(r.x1), r.y - 1, r.x2 - r.x1, 2);
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
     });
+    // grappin
+    liens.forEach((l) => {
+      const x2 = versEcran(l.vers) + U / 2;
+      ctx.strokeStyle = "#ffe14d"; ctx.lineWidth = 3; ctx.shadowColor = "#ffe14d"; ctx.shadowBlur = 12; ctx.globalAlpha = Math.min(1, l.t * 4);
+      ctx.beginPath(); ctx.moveTo(l.de, l.dy); ctx.lineTo(x2, l.vy); ctx.stroke(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    });
     // fantômes des autres coureurs
     Object.values(autres).forEach((o) => {
       const X = versEcran(o.d);
@@ -359,14 +398,14 @@
     particules.forEach((p) => { ctx.globalAlpha = Math.max(0, p.t * 2); ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 4, 4); });
     ctx.globalAlpha = 1;
     // mon cube
-    if (etat !== "fini" && etat !== "mort") {
-      const clignote = j.stun > 0 && (t / 80) % 2 < 1;
+    {
+      const clignote = (j.stun > 0 || j.inv > 0) && (t / 80) % 2 < 1;
       dessinerCube(X_CUBE, j.y, j.stun > 0 ? j.rot + t / 60 : j.rot, j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur], clignote ? 0.4 : 1);
       if (j.bouclier) { ctx.strokeStyle = "#3dff7a"; ctx.lineWidth = 2; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(X_CUBE + U / 2, j.y + U / 2, 26, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0; }
       if (j.lent > 0) texte("~", X_CUBE + U / 2, j.y - 12, 14, "#b388ff");
     }
     // haut de l'écran : distance (solo) ou progression de la course
-    if (mode === "course" && course) {
+    if (course) {
       const L = course.longueur * U, x1 = 60, x2 = W - 60;
       ctx.fillStyle = "rgba(216,249,255,0.3)"; ctx.fillRect(x1, 18, x2 - x1, 2);
       ctx.fillStyle = "#ffffff"; ctx.fillRect(x2, 10, 3, 18);
@@ -376,7 +415,7 @@
       texte(temps.toFixed(1), 16, 20, 10, "#ffffff", "left");
     }
     if (etat === "compte") texte(compte > 0.5 ? String(Math.ceil(compte - 0.5)) : "GO", W / 2, H / 2 - 40, 40, "#ffe14d");
-    $("#score").textContent = mode === "course" ? Math.floor(j.x / U) + " / " + LONGUEUR_COURSE : score();
+    $("#score").textContent = Math.min(LONGUEUR_COURSE, Math.floor(j.x / U)) + " / " + LONGUEUR_COURSE;
     $("#vitesse").textContent = "×" + (M.vitesseJoueur(j) / 330).toFixed(2);
   }
 
@@ -388,11 +427,7 @@
       compte -= dt;
       if (compte <= 0) { etat = "jeu"; depart = performance.now(); }
     } else if (etat === "jeu") mettreAJour(dt);
-    else if (etat === "mort") {
-      chronoMort -= dt;
-      if (chronoMort <= 0) { M.reprise(j, monde); etat = "jeu"; }
-      publierPosition();
-    } else if (etat === "arrive") {
+    else if (etat === "arrive") {
       // on continue à rouler doucement après la ligne
       M.etendre(monde, j.x + 2 * W);
       M.etape(j, monde, dt, false);
@@ -400,6 +435,8 @@
     particules.forEach((p) => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt; p.t -= dt; });
     particules = particules.filter((p) => p.t > 0);
     rayons.forEach((r) => (r.t -= dt)); rayons = rayons.filter((r) => r.t > 0);
+    liens.forEach((l) => (l.t -= dt)); liens = liens.filter((l) => l.t > 0);
+    if (secousse > 0) secousse -= dt;
     if (monde) dessiner(t); else { ctx.fillStyle = teinte(); ctx.fillRect(0, 0, W, H); }
     requestAnimationFrame(boucle);
   }
@@ -412,7 +449,7 @@
   };
 
   Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(Salle.pseudo())));
-  Coop.demarrer(JEU, { surRoles: () => { if (etat === "menu" || etat === "fini") menu($("#ov-titre").textContent || "NÉON DASH", $("#ov-texte").textContent); } })
+  Coop.demarrer(JEU, { surRoles: () => { if (etat === "menu" || (etat === "arrive" && mode === "solo")) menu($("#ov-titre").textContent || "NÉON DASH", $("#ov-texte").textContent); } })
     .then(demarrerReseau).catch(() => {});
   majBoutonObjet();
   menu("NÉON DASH", "");
