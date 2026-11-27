@@ -17,7 +17,7 @@
   const JEU = "pong";
 
   // ---------- Réglages ----------
-  const W = 800, H = 500;               // terrain (unités logiques = pixels du canvas)
+  const W = 880, H = 500;               // terrain (unités logiques) — plus large que haut
   const PW = 14, PH = 84, MARGE = 26;   // raquettes
   const B = 12;                         // côté de la balle
   const V0 = 340, K = 0.45;             // vitesse : v(n) = V0 (1 + K ln(1+n))
@@ -67,12 +67,46 @@
     if (k === "arrowup" || k === "z" || k === "w") touches.haut = false;
     if (k === "arrowdown" || k === "s") touches.bas = false;
   });
-  function viser(e) {
-    const r = canvas.getBoundingClientRect();
-    cibleSouris = ((e.clientY - r.top) / r.height) * H;
+  /* Doigt (ou souris appuyée) n'importe où sur l'écran : la raquette suit le
+     glissement. Souris qui survole le terrain : la raquette se place dessous. */
+  const monCote = () => (mode === "invite" ? 2 : 1);
+  // position le long de l'axe de la raquette, et sens, selon l'orientation de l'écran
+  const axe = (e) => (vertical ? e.clientX : e.clientY);
+  const sens = () => (vertical && monCote() === 2 ? -1 : 1);
+  function longueurEcran() { const r = canvas.getBoundingClientRect(); return vertical ? r.width : r.height; }
+  let glisse = null;
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button, .modal, .overlay:not([hidden])")) return;
+    glisse = { id: e.pointerId, depart: axe(e), y0: monY };
+    if (e.pointerType !== "mouse") e.preventDefault();
+  }, { passive: false });
+  document.addEventListener("pointermove", (e) => {
+    if (glisse && e.pointerId === glisse.id) {
+      const echelle = (H / longueurEcran()) * 1.4; // un petit glissement suffit pour traverser le terrain
+      cibleSouris = borne(glisse.y0 + (axe(e) - glisse.depart) * echelle * sens(), PH / 2, H - PH / 2);
+      return;
+    }
+    if (e.pointerType === "mouse" && e.target.closest("#terrain")) {
+      const r = canvas.getBoundingClientRect();
+      const f = vertical ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+      cibleSouris = (sens() > 0 ? f : 1 - f) * H;
+    }
+  });
+  ["pointerup", "pointercancel"].forEach((ev) => document.addEventListener(ev, (e) => { if (glisse && e.pointerId === glisse.id) glisse = null; }));
+
+  // ---------- Orientation : sur un écran en hauteur, le terrain est tourné ----------
+  let vertical = false;
+  function orienter() {
+    const v = innerHeight > innerWidth * 1.05;
+    if (v === vertical && canvas.width === (v ? H : W)) return;
+    vertical = v;
+    canvas.width = vertical ? H : W;
+    canvas.height = vertical ? W : H;
+    $("#terrain").dataset.ratio = canvas.width + "/" + canvas.height;
+    if (window.Page) Page.ajuster();
   }
-  $("#terrain").addEventListener("pointermove", viser);
-  $("#terrain").addEventListener("pointerdown", viser);
+  addEventListener("resize", orienter);
+  orienter();
 
   function bougerMaRaquette(dt) {
     if (cibleSouris != null) {
@@ -227,10 +261,24 @@
   const traine = [];
   function neon(couleur, flou) { ctx.shadowColor = couleur; ctx.shadowBlur = flou; ctx.fillStyle = couleur; }
 
+  // repère du terrain : à l'écran, ma raquette est à gauche (écran large) ou en bas (écran en hauteur)
+  function repere() {
+    if (!vertical) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    else if (monCote() === 1) ctx.setTransform(0, -1, 1, 0, 0, W);  // x → vers le haut, y → vers la droite
+    else ctx.setTransform(0, 1, -1, 0, H, 0);                        // côté droit en bas
+  }
+  function texte(t, x, y, taille, couleur, align) {
+    ctx.font = taille + "px 'Press Start 2P', monospace";
+    ctx.textAlign = align || "center"; ctx.textBaseline = "middle";
+    neon(couleur, 10); ctx.fillText(t, x, y); ctx.shadowBlur = 0;
+  }
+
   function dessiner(v) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    repere();
 
     // grille légère
     ctx.fillStyle = "rgba(255, 43, 214, 0.07)";
@@ -242,13 +290,6 @@
     for (let y = 8; y < H; y += 28) ctx.fillRect(W / 2 - 2, y, 4, 14);
 
     if (!v) return;
-
-    // scores
-    ctx.font = "40px 'Press Start 2P', monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    neon("#19f0ff", 14); ctx.fillText(v.s1, W / 2 - 90, 24);
-    neon("#ff2bd6", 14); ctx.fillText(v.s2, W / 2 + 90, 24);
 
     // raquettes
     neon("#19f0ff", 20); ctx.fillRect(MARGE, v.y1 - PH / 2, PW, PH);
@@ -269,28 +310,39 @@
       ctx.fillRect(v.bx - B / 2, v.by - B / 2, B, B);
     }
 
-    // compte à rebours avant le service
-    if (v.phase === "service" && v.attente > 0) {
-      ctx.font = "28px 'Press Start 2P', monospace";
-      ctx.textBaseline = "middle";
-      neon("#ffe14d", 12);
-      ctx.fillText(v.attente > 1.5 ? "PRÊT ?" : Math.ceil(v.attente), W / 2, H / 2 + 70);
+    // textes, toujours à l'endroit
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const cw = canvas.width, ch = canvas.height;
+    const nom2 = v.bot ? "BOT" : nomJ2 || "—";
+    const info = infoVitesse(v);
+    if (!vertical) {
+      texte(v.s1, cw / 2 - 90, 48, 40, "#19f0ff");
+      texte(v.s2, cw / 2 + 90, 48, 40, "#ff2bd6");
+      texte(nomJ1 || "—", 18, 18, 11, "#19f0ff", "left");
+      texte(nom2, cw - 18, 18, 11, "#ff2bd6", "right");
+      texte(info, cw / 2, ch - 16, 10, "#ffe14d");
+    } else {
+      // moi en bas, l'adversaire en haut
+      const moi = monCote() === 1, [sMoi, sLui] = moi ? [v.s1, v.s2] : [v.s2, v.s1];
+      const [cMoi, cLui] = moi ? ["#19f0ff", "#ff2bd6"] : ["#ff2bd6", "#19f0ff"];
+      texte(sLui, 36, ch / 2 - 44, 32, cLui);
+      texte(sMoi, 36, ch / 2 + 44, 32, cMoi);
+      texte(moi ? nom2 : nomJ1 || "—", 14, 18, 11, cLui, "left");
+      texte(moi ? nomJ1 || "—" : nom2, 14, ch - 18, 11, cMoi, "left");
+      texte(info, cw - 14, ch - 18, 10, "#ffe14d", "right");
     }
-    ctx.shadowBlur = 0;
+    if (v.phase === "service" && v.attente > 0) {
+      texte(v.attente > 1.5 ? "PRÊT ?" : Math.ceil(v.attente), cw / 2, vertical ? ch / 2 + 110 : ch / 2 + 80, 26, "#ffe14d");
+    }
   }
 
   // ---------- Barre du haut ----------
   let messageTemp = "", messageJusqua = 0;
   function message(t) { messageTemp = t; messageJusqua = performance.now() + 3000; }
-  function majBarre(v, maintenant) {
-    const bot = v ? v.bot : true;
-    $("#nom1").textContent = nomJ1 || "—";
-    $("#nom2").textContent = bot ? "🤖 BOT" : nomJ2 || "—";
-    let t;
-    if (maintenant < messageJusqua) t = messageTemp;
-    else if (v && v.phase === "jeu") t = "×" + (1 + K * Math.log(1 + v.echange)).toFixed(1);
-    else t = mode === "spectateur" ? "👀" : bot ? "BOT" : "1V1";
-    $("#mode").textContent = t;
+  function infoVitesse(v) {
+    if (performance.now() < messageJusqua) return messageTemp;
+    if (v && v.phase === "jeu") return "×" + (1 + K * Math.log(1 + v.echange)).toFixed(1);
+    return mode === "spectateur" ? "SPECTATEUR" : "";
   }
 
   // ---------- Écran par-dessus le terrain ----------
@@ -400,7 +452,6 @@
 
     const v = vue(maintenant);
     dessiner(v);
-    majBarre(v, maintenant);
     enregistrerSiFini();
     envoyer(maintenant);
     requestAnimationFrame(boucle);
