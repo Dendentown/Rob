@@ -6,7 +6,8 @@
      trou → retour au dernier point de reprise
    Parcours généré au hasard (voir moteur.js), obstacles serrés :
    montées, descentes, trous, plafonds à piques, tunnels, plateformes,
-   tremplins, anneaux, doubles chemins, et des pièges animés :
+   tremplins, anneaux, doubles chemins, parties À L'ENVERS (au plafond),
+   et des pièges animés :
    cubes qui tombent, ascenseurs, dalles qui s'effondrent, portails de
    gravité, tapis roulants, murs à rebond, lasers alternés, pendules,
    portes à interrupteur, bulles de saut, deux voies, zone sombre.
@@ -329,14 +330,25 @@
     monde.rects.forEach((r) => {
       if (r.detruit || !visible(r)) return;
       const X = versEcran(r.x);
-      if (r.type === "sol") {
+      if (r.type === "sol" && r.haut) { // sol retourné (partie à l'envers)
+        const b = r.y + r.h;
+        ctx.fillStyle = "#05010f"; ctx.fillRect(X, 0, r.w, b);
+        ctx.fillStyle = "rgba(255, 225, 77, 0.12)";
+        for (let x = Math.ceil(r.x / U) * U; x < r.x + r.w; x += U) ctx.fillRect(versEcran(x), 0, 1, b - 3);
+        ctx.fillStyle = "#ffe14d"; ctx.shadowColor = "#ffe14d"; ctx.shadowBlur = 10;
+        ctx.fillRect(X, b - 3, r.w, 3);
+        const meme = (o) => o !== r && o.type === "sol" && o.haut && o.y + o.h === b;
+        if (!monde.rects.some((o) => meme(o) && Math.abs(o.x + o.w - r.x) < 1)) ctx.fillRect(X, 0, 2, b);
+        if (!monde.rects.some((o) => meme(o) && Math.abs(o.x - (r.x + r.w)) < 1)) ctx.fillRect(X + r.w - 2, 0, 2, b);
+        ctx.shadowBlur = 0;
+      } else if (r.type === "sol") {
         ctx.fillStyle = "#05010f"; ctx.fillRect(X, r.y, r.w, H - r.y);
         ctx.fillStyle = "rgba(25, 240, 255, 0.12)";
         for (let x = Math.ceil(r.x / U) * U; x < r.x + r.w; x += U) ctx.fillRect(versEcran(x), r.y + 3, 1, H - r.y);
         ctx.fillStyle = "#19f0ff"; ctx.shadowColor = "#19f0ff"; ctx.shadowBlur = 10;
         ctx.fillRect(X, r.y, r.w, 3);
         // bords verticaux seulement s'il y a une marche ou un trou (pas entre deux sols au même niveau)
-        const memeNiveau = (o) => o !== r && o.type === "sol" && o.y === r.y;
+        const memeNiveau = (o) => o !== r && o.type === "sol" && !o.haut && o.y === r.y;
         if (!monde.rects.some((o) => memeNiveau(o) && Math.abs(o.x + o.w - r.x) < 1)) ctx.fillRect(X, r.y, 2, H - r.y);
         if (!monde.rects.some((o) => memeNiveau(o) && Math.abs(o.x - (r.x + r.w)) < 1)) ctx.fillRect(X + r.w - 2, r.y, 2, H - r.y);
         ctx.shadowBlur = 0;

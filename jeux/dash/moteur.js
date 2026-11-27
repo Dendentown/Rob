@@ -12,6 +12,8 @@
      éboulement, ascenseurs, pont qui s'effondre, gravité inversée,
      tapis roulants, mur à rebond, lasers alternés, pendules, porte à
      interrupteur, bulles de saut, deux voies, zone sombre.
+   Parfois, une partie du parcours se fait À L'ENVERS : un portail retourne
+   le cube, qui enchaîne des obstacles habituels retournés au plafond.
    Le sol a plusieurs hauteurs (niveaux 0 à 3).
    Des boîtes « ? » sont semées sur le parcours.
    On ne meurt jamais : les erreurs ralentissent ou bloquent (voir etape).
@@ -48,6 +50,23 @@
     return m;
   }
 
+  // Partie à l'envers : tout est retourné autour de y = MIROIR / 2 (le sol du niveau g devient un plafond en haut de l'écran)
+  const MIROIR = H;
+  function solHaut(m, x1, x2, g) { const yb = MIROIR - yDe(g); m.rects.push({ id: m.id++, x: x1, y: -300, w: x2 - x1, h: yb + 300, type: "sol", haut: true }); }
+  const ENVERS_OK = ["piques", "blocs", "montee", "descente", "trou", "multi-trous", "escalier", "plafond-piques", "tunnel", "etroit", "slalom", "plateformes", "zigzag", "double", "trois-niveaux", "souterrain"];
+  function mondeTemp(m) { return { rects: [], piques: [], boites: [], tremplins: [], anneaux: [], tombants: [], mobiles: [], fragiles: [], portails: [], tapis: [], lasers: [], pendules: [], portes: [], boutons: [], bulles: [], sombres: [], id: m.id }; }
+  function retourner(m, tm) {
+    m.id = tm.id;
+    tm.rects.forEach((r) => {
+      const y = MIROIR - (r.y + r.h);
+      if (r.type === "sol") m.rects.push(Object.assign({}, r, { y, haut: true }));
+      else if (r.type === "plafond") m.rects.push(Object.assign({}, r, { y, h: H + 300 - y, type: "sol" }));
+      else m.rects.push(Object.assign({}, r, { y }));
+    });
+    tm.piques.forEach((p) => m.piques.push(Object.assign({}, p, { y: MIROIR - p.y, bas: !p.bas })));
+    tm.boites.forEach((b) => m.boites.push(Object.assign({}, b, { y: MIROIR - b.y })));
+  }
+
   function sol(m, x1, x2, g) { m.rects.push({ id: m.id++, x: x1, y: yDe(g), w: x2 - x1, h: H + 300 - yDe(g), type: "sol" }); }
   function bloc(m, x, niveauHaut, w, epaisseur) { // bloc dont la face du dessus est au niveau donné
     m.rects.push({ id: m.id++, x, y: yDe(niveauHaut), w: w || U, h: (epaisseur || 1) * U, type: "bloc" });
@@ -67,13 +86,29 @@
       if (a() < 0.3) boite(m, x + (2 + n / 2) * U, g + 3);
       return { l, g };
     } },
-    { nom: "blocs", min: 0, poids: 3, f(m, x, g, a) {
-      sol(m, x, x + 12 * U, g);
-      bloc(m, x + 2 * U, g + 1);
-      pique(m, x + 5 * U, yDe(g)); pique(m, x + 6 * U, yDe(g));
-      bloc(m, x + 9 * U, g + 1);
-      if (a() < 0.5) bloc(m, x + 10 * U, g + 2), bloc(m, x + 10 * U, g + 1);
-      return { l: 12, g };
+    { nom: "blocs", min: 0, poids: 6, f(m, x, g, a) {
+      // bloc · piques · bloc OU piques · bloc · piques (échangés), 3 ou 5 éléments,
+      // espaces de 2 à 3 cases, 1 à 3 piques, blocs simples, doubles ou larges
+      const espace = () => 2 + ((a() * 3) | 0) * 0.5;
+      let cx = 2, typeBloc = a() < 0.5;
+      const n = a() < 0.4 ? 5 : 3;
+      for (let e = 0; e < n; e++) {
+        if (e > 0) cx += espace();
+        if (typeBloc) {
+          const r = a(), larg = r < 0.25 ? 2 : 1, haut = r > 0.7 ? 2 : 1;
+          for (let k = 1; k <= haut; k++) bloc(m, x + cx * U, g + k, larg * U);
+          cx += larg;
+        } else {
+          const np = 1 + ((a() * 3) | 0);
+          for (let i = 0; i < np; i++) pique(m, x + (cx + i) * U, yDe(g));
+          if (a() < 0.25) boite(m, x + (cx + np / 2) * U, g + 3);
+          cx += np;
+        }
+        typeBloc = !typeBloc;
+      }
+      const l = Math.ceil(cx + 2);
+      sol(m, x, x + l * U, g);
+      return { l, g };
     } },
     { nom: "montee", min: 0, poids: 2, possible: (g) => g < 3, f(m, x, g, a) {
       const dg = g < 2 && a() < 0.4 ? 2 : 1;
@@ -230,14 +265,23 @@
       return { l: (cx - x) / U + 3, g };
     } },
     { nom: "gravite", min: 300, poids: 2, possible: (g) => g <= 1, f(m, x, g, a) {
-      // un portail retourne le cube : il court au plafond, un second portail le remet à l'endroit
-      const l = 21, yb = yDe(g) - 4.5 * U;
+      // un portail retourne le cube : il court au plafond (trous et piques), un second portail le remet à l'endroit
+      const l = 34, yb = yDe(g) - 4.5 * U;
       sol(m, x, x + l * U, g);
-      plafond(m, x + 3 * U, x + 9 * U, yb); plafond(m, x + 11 * U, x + 18 * U, yb);
+      plafond(m, x + 3 * U, x + 10 * U, yb); plafond(m, x + 12 * U, x + 20 * U, yb); plafond(m, x + 22.5 * U, x + 31 * U, yb);
       m.portails.push({ id: m.id++, x: x + 3.5 * U, haut: yb, bas: yDe(g), grav: -1 });
-      pique(m, x + 14 * U, yb, true);
-      if (a() < 0.5) boite(m, x + 6 * U, g + 2.5);
-      m.portails.push({ id: m.id++, x: x + 17 * U, haut: yb, bas: yDe(g), grav: 1 });
+      pique(m, x + 15 * U, yb, true); pique(m, x + 16 * U, yb, true); pique(m, x + 26 * U, yb, true);
+      if (a() < 0.5) boite(m, x + 7 * U, g + 2.5);
+      m.portails.push({ id: m.id++, x: x + 30 * U, haut: yb, bas: yDe(g), grav: 1 });
+      return { l, g };
+    } },
+    { nom: "envers", min: 250, poids: 2, f(m, x, g, a) {
+      // entrée d'une partie du parcours À L'ENVERS : les obstacles habituels, retournés, au plafond
+      const l = 9;
+      sol(m, x, x + l * U, g);
+      solHaut(m, x + U, x + l * U, g);
+      m.portails.push({ id: m.id++, x: x + 2 * U, haut: MIROIR - yDe(g), bas: yDe(g), grav: -1 });
+      m.envers = 4 + ((a() * 4) | 0);
       return { l, g };
     } },
     { nom: "tapis", min: 100, poids: 2, f(m, x, g, a) {
@@ -346,18 +390,41 @@
   function etendre(m, xMax) {
     while (m.xGen < Math.min(xMax, m.fin + 20 * U)) {
       const d = m.xGen / U;
-      if (m.xGen >= m.fin) { sol(m, m.xGen, m.xGen + 40 * U, m.g); m.xGen += 40 * U; break; } // après l'arrivée : sol plat
-      const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)));
+      if (m.xGen >= m.fin) { // après l'arrivée : sol plat (et on remet à l'endroit si besoin)
+        if (m.envers) { solHaut(m, m.xGen, m.xGen + 6 * U, m.g); m.portails.push({ id: m.id++, x: m.xGen + 2 * U, haut: MIROIR - yDe(m.g), bas: yDe(m.g), grav: 1 }); m.envers = 0; }
+        sol(m, m.xGen, m.xGen + 40 * U, m.g); m.xGen += 40 * U; break;
+      }
+      const envers = m.envers > 0;
+      const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)) && (envers ? ENVERS_OK.includes(c.nom) : true));
       let r = m.alea() * dispo.reduce((s, c) => s + c.poids, 0), choix = dispo[0];
       for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
-      m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom });
-      const res = choix.f(m, m.xGen, m.g, m.alea);
+      m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
+      const tm = envers ? mondeTemp(m) : m;
+      const res = choix.f(tm, m.xGen, m.g, m.alea);
+      if (envers) retourner(m, tm);
       m.xGen += res.l * U; m.g = res.g;
       // sol plat entre deux morceaux, court : on ne meurt pas, les obstacles peuvent être serrés
       const v = vitesseBase(m.xGen);
       const ecart = Math.max(0.12 * v, (2.5 - d / 1000) * U) + m.alea() * 1.2 * U;
-      m.reperes.push({ x: m.xGen, g: m.g, nom: "plat" });
-      sol(m, m.xGen, m.xGen + ecart, m.g);
+      if (envers) {
+        m.envers--;
+        if (m.envers === 0) {
+          // sortie : un portail remet à l'endroit, on retombe sur un sol normal
+          m.reperes.push({ x: m.xGen, g: m.g, nom: "sortie", inv: true });
+          solHaut(m, m.xGen, m.xGen + 5 * U, m.g);
+          m.portails.push({ id: m.id++, x: m.xGen + 2 * U, haut: MIROIR - yDe(m.g), bas: yDe(m.g), grav: 1 });
+          sol(m, m.xGen, m.xGen + 9 * U, m.g);
+          m.xGen += 9 * U;
+          m.reperes.push({ x: m.xGen, g: m.g, nom: "plat" });
+          sol(m, m.xGen, m.xGen + ecart, m.g);
+        } else {
+          m.reperes.push({ x: m.xGen, g: m.g, nom: "plat", inv: true });
+          solHaut(m, m.xGen, m.xGen + ecart, m.g);
+        }
+      } else {
+        m.reperes.push({ x: m.xGen, g: m.g, nom: "plat", inv: !!m.envers });
+        if (m.envers) solHaut(m, m.xGen, m.xGen + ecart, m.g); else sol(m, m.xGen, m.xGen + ecart, m.g);
+      }
       m.xGen += ecart;
     }
   }
@@ -392,7 +459,11 @@
   function reprise(j, m, x) {
     const ref = x == null ? j.x - U : x;
     const r = m.reperes.filter((p) => p.x <= ref).pop() || m.reperes[0] || { x: 0, g: 0 };
-    Object.assign(j, { x: r.x + 2, y: yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, grav: 1, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
+    placer(j, r);
+  }
+  function placer(j, r) { // à l'arrêt sur un point de reprise (au plafond si on est dans une partie à l'envers)
+    Object.assign(j, { x: r.x + 2, y: r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, grav: r.inv ? -1 : 1,
+      charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
   }
 
   const vitesseCroisiere = (j) => vitesseBase(j.x) * (j.boost > 0 ? 1.5 : 1) * (j.lent > 0 ? 0.6 : 1) * (j.tapis > 0 ? 1.6 : j.tapis < 0 ? 0.5 : 1);
@@ -568,11 +639,11 @@
 
   // sol sous une abscisse (pour poser une flaque)
   function solSous(m, x) {
-    const r = m.rects.filter((r) => r.type === "sol" && r.x <= x && r.x + r.w >= x).sort((a, b) => a.y - b.y)[0];
+    const r = m.rects.filter((r) => r.type === "sol" && !r.haut && r.x <= x && r.x + r.w >= x).sort((a, b) => a.y - b.y)[0];
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, etape, laser, solSous, MORCEAUX, LISTES,
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, etape, laser, solSous, MORCEAUX, LISTES,
     yTombant, yMobile, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
