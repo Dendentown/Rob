@@ -64,12 +64,12 @@
       return { l, g };
     } },
     { nom: "blocs", min: 0, poids: 3, f(m, x, g, a) {
-      sol(m, x, x + 10 * U, g);
+      sol(m, x, x + 12 * U, g);
       bloc(m, x + 2 * U, g + 1);
-      pique(m, x + 4 * U, yDe(g)); pique(m, x + 5 * U, yDe(g));
-      bloc(m, x + 7 * U, g + 1);
-      if (a() < 0.5) bloc(m, x + 8 * U, g + 2), bloc(m, x + 8 * U, g + 1);
-      return { l: 10, g };
+      pique(m, x + 5 * U, yDe(g)); pique(m, x + 6 * U, yDe(g));
+      bloc(m, x + 9 * U, g + 1);
+      if (a() < 0.5) bloc(m, x + 10 * U, g + 2), bloc(m, x + 10 * U, g + 1);
+      return { l: 12, g };
     } },
     { nom: "montee", min: 0, poids: 2, possible: (g) => g < 3, f(m, x, g, a) {
       const dg = g < 2 && a() < 0.4 ? 2 : 1;
