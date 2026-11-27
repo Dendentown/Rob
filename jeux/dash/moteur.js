@@ -194,16 +194,28 @@
       const haut = { id: m.id++, x: x + 6 * U, y: yDe(g + 3), w: 2 * U, h: 3 * U, type: "bloc" };
       m.rects.push(haut);
       if (a() < 0.45) {
-        // plateforme haute PLUS LOIN, séparée de l'escalier par du vide : on ne l'atteint qu'en sautant
-        // du haut des marches (une boîte flotte dans le vide, au sommet du grand saut).
-        // On peut aussi l'ignorer et passer en bas.
-        const l = 29;
-        sol(m, x, x + l * U, g);
-        dalle(m, x + 15 * U, x + 25 * U, g + 5);
-        pique(m, x + 13 * U, yDe(g)); pique(m, x + 20 * U, yDe(g));
+        // plateforme haute séparée de l'escalier par un peu de vide : on ne l'atteint qu'en sautant
+        // du haut des marches (une boîte flotte dans le vide, sur la trajectoire du saut).
+        // Parfois TROIS étages : chaque plateforme n'est accessible que depuis la précédente.
+        // On peut aussi tout ignorer et passer en bas.
         const s0 = sommetSautMax(haut);
-        m.boites.push({ id: m.id++, x: s0.x + U / 2, y: s0.y + U / 2 });
-        if (a() < 0.5) boite(m, x + 23 * U, g + 6.2);
+        m.boites.push({ id: m.id++, x: s0.x + U / 2 - 0.5 * U, y: s0.y + U / 2 + 0.8 * U }); // facile : un peu sous le sommet
+        if (g <= 1 && a() < 0.5) {
+          const l = 38;
+          sol(m, x, x + l * U, g);
+          dalle(m, x + 12 * U, x + 19 * U, g + 4.6);
+          dalle(m, x + 21.5 * U, x + 27 * U, g + 7);
+          dalle(m, x + 29.5 * U, x + 35 * U, g + 9.4);
+          pique(m, x + 13 * U, yDe(g)); pique(m, x + 22 * U, yDe(g)); pique(m, x + 30 * U, yDe(g));
+          boite(m, x + 24 * U, g + 8.2);
+          boite(m, x + 33 * U, g + 10.6);
+          return { l, g };
+        }
+        const l = 26;
+        sol(m, x, x + l * U, g);
+        dalle(m, x + 12 * U, x + 22 * U, g + 4.6);
+        pique(m, x + 13 * U, yDe(g)); pique(m, x + 19 * U, yDe(g));
+        if (a() < 0.5) boite(m, x + 20 * U, g + 5.8);
         return { l, g };
       }
       // long tapis de piques après l'escalier : il FAUT le plus grand saut, depuis le haut des marches.
@@ -212,7 +224,7 @@
       sol(m, x, x + l * U, g);
       for (let i = 9; i < 16; i++) pique(m, x + i * U, yDe(g));
       const s0 = sommetSautMax(haut);
-      m.boites.push({ id: m.id++, x: s0.x + U / 2 + 20, y: s0.y + U / 2 - 18 }); // réglé par simulation : grand saut bien placé (pas forcément parfait)
+      m.boites.push({ id: m.id++, x: s0.x + U / 2 + 6, y: s0.y + U / 2 + 6 }); // réglé par simulation : facile avec un bon grand saut
       return { l, g };
     } },
     { nom: "plafond-piques", min: 150, poids: 2, f(m, x, g, a) {
