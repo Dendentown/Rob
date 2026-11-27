@@ -84,7 +84,7 @@ Chacun joue sa propre partie. Dans un lobby, le panneau « Dans le lobby » mont
 
 ### 👾 Space Invaders · 🧱 Breakout · 🤖 Labyrinthe · 🔷 Néon Dash · ⚔️ Horde
 Chacun joue sa partie (panneau « Dans le lobby » en direct). Personnages et décors originaux.
-- **Space Invaders** : 55 envahisseurs qui accélèrent quand ils sont moins nombreux, 4 boucliers destructibles, soucoupe bonus (50 à 300), 3 vies, vagues de plus en plus basses et rapides. Points 30 / 20 / 10 selon le rang.
+- **Space Invaders** : niveaux en cycle de 5 — formation pleine, en V, damier (blindés), forteresse (sans boucliers, plus de blindés), puis un BOSS (vaisseau-mère avec barre de vie, tirs en éventail et visés). Chaque cycle : plus rapide, plus de blindés (2 coups), boss plus résistant. Bonus à attraper : R rafale (3 tirs), T triple (éventail), P perçant, B bouclier, V vie +1, X bombe. Coop à 2 vaisseaux (5 vies partagées). Points 30 / 20 / 10, blindé 40, soucoupe 50 à 300, boss 1000 × cycle.
 - **Breakout** : 8 rangées de briques (70 / 50 / 30 / 10). Vitesse de la balle 300 × (1 + 0,3 ln(1 + rebonds)) × (1 + 0,08 (niveau − 1)). 3 vies.
 - **Labyrinthe** : Rob le robot ramasse 181 gommes (10) et 4 super-gommes (50) ; 4 bugs (poursuite, embuscade, hasard, timide) ; bugs mangés : 200 / 400 / 800 / 1600. Labyrinthe original 19 × 21 avec tunnel.
 - **Néon Dash** : un cube avance seul ; sauter (on peut garder appuyé) au-dessus des piques et des trous, monter sur les blocs ; tremplins et anneaux. Parcours infini généré, vérifié franchissable par simulation. Score = distance en mètres.
