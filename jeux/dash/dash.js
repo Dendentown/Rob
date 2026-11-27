@@ -6,7 +6,10 @@
      trou → retour au dernier point de reprise
    Parcours généré au hasard (voir moteur.js), obstacles serrés :
    montées, descentes, trous, plafonds à piques, tunnels, plateformes,
-   tremplins, anneaux, doubles chemins.
+   tremplins, anneaux, doubles chemins, et des pièges animés :
+   cubes qui tombent, ascenseurs, dalles qui s'effondrent, portails de
+   gravité, tapis roulants, murs à rebond, lasers alternés, pendules,
+   portes à interrupteur, bulles de saut, deux voies, zone sombre.
 
    BOÎTES « ? » : un objet à la fois, à utiliser avec le bouton en bas
    à droite (ou E / Maj / Entrée) :
@@ -134,8 +137,13 @@
     if (ev.includes("glisse")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 12);
     if (ev.includes("choc")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 12); secousse = 0.15; }
     if (ev.includes("bloque") && Math.random() < 0.15) eclat(X_CUBE + U, j.y + U / 2, "#19f0ff", 2);
+    if (ev.includes("rebond")) eclat(X_CUBE + U, j.y + U / 2, "#3dff7a", 8);
+    if (ev.includes("bulle-prise")) eclat(X_CUBE + U / 2, j.y + U / 2, "#19f0ff", 10);
+    if (ev.includes("bulle")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 8);
+    if (ev.includes("portail")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ffe14d", 14); secousse = 0.1; }
+    if (ev.includes("porte")) eclat(X_CUBE + U, j.y, "#3dff7a", 12);
     if (ev.includes("chute")) { eclat(X_CUBE + U / 2, j.y + U / 2, COULEURS[maCouleur], 20); secousse = 0.25; }
-    if (j.sol && Math.random() < 0.6) particules.push({ x: X_CUBE, y: j.y + U - 2, vx: -150, vy: -Math.random() * 60, t: 0.3, c: j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur] });
+    if (j.sol && Math.random() < 0.6) particules.push({ x: X_CUBE, y: j.grav < 0 ? j.y : j.y + U - 2, vx: -150, vy: -Math.random() * 60, t: 0.3, c: j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur] });
     temps = (performance.now() - depart) / 1000;
     if (mode === "course") {
       if (ev.includes("fini")) arriver();
@@ -335,6 +343,12 @@
       } else if (r.type === "plafond") {
         ctx.fillStyle = "#0c0424"; ctx.fillRect(X, 0, r.w, r.y + r.h);
         ctx.fillStyle = "#ff2bd6"; ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 10; ctx.fillRect(X, r.y + r.h - 3, r.w, 3); ctx.shadowBlur = 0;
+      } else if (r.type === "rebond") {
+        ctx.fillStyle = "#0c0424"; ctx.fillRect(X, r.y, r.w, r.h);
+        ctx.strokeStyle = "#3dff7a"; ctx.lineWidth = 2; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 10;
+        ctx.strokeRect(X + 1, r.y + 1, r.w - 2, r.h - 2); ctx.shadowBlur = 0;
+        ctx.fillStyle = "#3dff7a";
+        for (let y = r.y + r.h - 22; y > r.y; y -= 24) { ctx.beginPath(); ctx.moveTo(X + 4, y + 10); ctx.lineTo(X + 10, y); ctx.lineTo(X + 16, y + 10); ctx.lineTo(X + 13, y + 10); ctx.lineTo(X + 10, y + 5); ctx.lineTo(X + 7, y + 10); ctx.fill(); }
       } else {
         ctx.fillStyle = "#0c0424"; ctx.fillRect(X, r.y, r.w, r.h);
         ctx.strokeStyle = "#19f0ff"; ctx.lineWidth = 2; ctx.shadowColor = "#19f0ff"; ctx.shadowBlur = 8;
@@ -373,6 +387,109 @@
       ctx.fillStyle = "rgba(25, 240, 255, 0.55)"; ctx.shadowColor = "#19f0ff"; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.ellipse(X + U, f.y - 2, U, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
     });
+    // ---- pièges animés ----
+    const tj = j.t;
+    monde.tombants.forEach((o) => {
+      if (o.detruit || !visible(o)) return;
+      const y = M.yTombant(o, j), pret = j.trig[o.id] == null && o.x - j.x < 9 * U;
+      const X = versEcran(o.x) + (pret ? Math.sin(t / 25) * 2 : 0);
+      ctx.fillStyle = "#0c0424"; ctx.fillRect(X, y, U, U);
+      ctx.strokeStyle = "#ff8a1f"; ctx.lineWidth = 2; ctx.shadowColor = "#ff8a1f"; ctx.shadowBlur = 10; ctx.strokeRect(X + 1, y + 1, U - 2, U - 2); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#ff8a1f"; ctx.fillRect(X + 8, y + 8, U - 16, U - 16);
+    });
+    monde.mobiles.forEach((o) => {
+      if (!visible(o)) return;
+      const X = versEcran(o.x), y = M.yMobile(o, tj);
+      ctx.strokeStyle = "rgba(179,136,255,0.25)"; ctx.setLineDash([4, 6]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(X + o.w / 2, o.yc - o.amp); ctx.lineTo(X + o.w / 2, o.yc + o.amp + o.h); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12; ctx.fillRect(X, y, o.w, o.h); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#05010f"; for (let x = 6; x < o.w - 6; x += 12) ctx.fillRect(X + x, y + 4, 6, o.h - 8);
+    });
+    monde.fragiles.forEach((o) => {
+      if (!visible(o)) return;
+      const t0 = j.trig[o.id], tau = t0 == null ? 0 : tj - t0;
+      let X = versEcran(o.x), y = o.y;
+      if (t0 != null && tau <= 0.3) X += Math.sin(t / 15) * 1.5;
+      if (t0 != null && tau > 0.3) { y += 0.5 * 2600 * (tau - 0.3) ** 2; if (y > H) return; ctx.globalAlpha = 0.6; }
+      ctx.fillStyle = "#1a0f33"; ctx.fillRect(X + 1, y, o.w - 2, o.h);
+      ctx.fillStyle = "#d8f9ff"; ctx.fillRect(X + 1, y, o.w - 2, 2);
+      ctx.strokeStyle = "rgba(216,249,255,0.6)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(X + 8, y); ctx.lineTo(X + 14, y + o.h / 2); ctx.lineTo(X + 10, y + o.h); ctx.moveTo(X + 14, y + o.h / 2); ctx.lineTo(X + 22, y + 3); ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+    monde.tapis.forEach((o) => {
+      if (!visible(o)) return;
+      const X = versEcran(o.x), c = o.dir > 0 ? "#3dff7a" : "#ff3b3b", dec = ((t / 1000) * 60 * o.dir) % 20;
+      ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 8; ctx.fillRect(X, o.y, o.w, 3); ctx.shadowBlur = 0;
+      ctx.save(); ctx.beginPath(); ctx.rect(X, o.y + 4, o.w, 10); ctx.clip();
+      ctx.fillStyle = c;
+      for (let x = -20 + dec; x < o.w + 20; x += 20) {
+        const a = X + x;
+        ctx.beginPath();
+        if (o.dir > 0) { ctx.moveTo(a, o.y + 5); ctx.lineTo(a + 6, o.y + 9); ctx.lineTo(a, o.y + 13); }
+        else { ctx.moveTo(a + 6, o.y + 5); ctx.lineTo(a, o.y + 9); ctx.lineTo(a + 6, o.y + 13); }
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+    monde.portails.forEach((o) => {
+      if (!visible(o)) return;
+      const X = versEcran(o.x), c = o.grav < 0 ? "#ffe14d" : "#19f0ff";
+      ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 18; ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t / 100);
+      ctx.fillRect(X - 6, o.haut, 12, o.bas - o.haut); ctx.globalAlpha = 1;
+      ctx.fillRect(X - 1, o.haut, 2, o.bas - o.haut); ctx.shadowBlur = 0;
+      texte(o.grav < 0 ? "▲" : "▼", X, (o.haut + o.bas) / 2, 12, c);
+    });
+    monde.lasers.forEach((o) => {
+      if (o.detruit || !visible(o)) return;
+      const X = versEcran(o.x), on = M.laserActif(o, tj);
+      ctx.fillStyle = "#ff3b3b"; ctx.fillRect(X - 3, o.y1 - 4, o.w + 6, 4); ctx.fillRect(X - 3, o.y2 - 2, o.w + 6, 4);
+      if (on) {
+        ctx.fillStyle = "#ff3b3b"; ctx.shadowColor = "#ff3b3b"; ctx.shadowBlur = 18; ctx.fillRect(X, o.y1, o.w, o.y2 - o.y1);
+        ctx.fillStyle = "#fff"; ctx.fillRect(X + o.w / 2 - 1, o.y1, 2, o.y2 - o.y1); ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = "rgba(255,59,59,0.25)";
+        for (let y = o.y1; y < o.y2; y += 8) ctx.fillRect(X + o.w / 2 - 1, y, 2, 4);
+      }
+    });
+    monde.pendules.forEach((o) => {
+      if (o.detruit || Math.abs(o.x - j.x) > W + o.L) return;
+      const b = M.posPendule(o, tj), X = versEcran(o.x), BX = versEcran(b.x);
+      ctx.strokeStyle = "#8a7aa8"; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(X, o.py); ctx.lineTo(BX, b.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#ff2bd6"; ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 14;
+      ctx.beginPath();
+      for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2 + tj * 3, r = k % 2 ? o.r : o.r + 6; ctx.lineTo(BX + Math.cos(a) * r, b.y + Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#05010f"; ctx.beginPath(); ctx.arc(BX, b.y, o.r - 6, 0, Math.PI * 2); ctx.fill();
+    });
+    monde.portes.forEach((o) => {
+      if (o.detruit || !visible(o)) return;
+      const t0 = j.trig[o.id], X = versEcran(o.x);
+      const monte = t0 == null ? 0 : Math.min(1, (tj - t0) * 3);
+      const bas = o.y + o.h - monte * 200;
+      if (bas <= 0) return;
+      ctx.fillStyle = "#0c0424"; ctx.fillRect(X, 0, o.w, bas);
+      ctx.fillStyle = "#3dff7a"; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 10;
+      ctx.fillRect(X, 0, 2, bas); ctx.fillRect(X + o.w - 2, 0, 2, bas); ctx.fillRect(X, bas - 3, o.w, 3);
+      for (let y = bas - 20; y > 0; y -= 20) ctx.fillRect(X, y, o.w, 2);
+      ctx.shadowBlur = 0;
+      const att = j.attente[o.id] || 0;
+      if (t0 == null && att > 0) { ctx.fillStyle = "#3dff7a"; ctx.fillRect(X - 6, bas - 30 - att * 40, 3, att * 40); }
+    });
+    monde.boutons.forEach((o) => {
+      if (!visible(o)) return;
+      const X = versEcran(o.x), on = j.trig[o.porte] != null;
+      ctx.fillStyle = on ? "#1a4d2a" : "#3dff7a"; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = on ? 0 : 12;
+      ctx.fillRect(X + 4, o.y - (on ? 3 : 7), o.w - 8, on ? 3 : 7); ctx.shadowBlur = 0;
+    });
+    monde.bulles.forEach((o) => {
+      if (!visible(o) || j.bulles.includes(o.id)) return;
+      const X = versEcran(o.x), r = 12 + Math.sin(t / 150 + o.x) * 1.5;
+      ctx.fillStyle = "rgba(25,240,255,0.15)"; ctx.strokeStyle = "#19f0ff"; ctx.lineWidth = 2; ctx.shadowColor = "#19f0ff"; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(X, o.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#d8f9ff"; ctx.fillRect(X - 5, o.y - 6, 3, 3);
+    });
     // ligne d'arrivée
     if (isFinite(monde.fin)) {
       const X = versEcran(monde.fin);
@@ -407,6 +524,17 @@
       dessinerCube(X_CUBE, j.y, j.stun > 0 ? j.rot + t / 60 : j.rot, j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur], clignote ? 0.4 : 1);
       if (j.bouclier) { ctx.strokeStyle = "#3dff7a"; ctx.lineWidth = 2; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(X_CUBE + U / 2, j.y + U / 2, 26, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0; }
       if (j.lent > 0) texte("~", X_CUBE + U / 2, j.y - 12, 14, "#b388ff");
+    }
+    // zone sombre : seul un halo autour du cube éclaire
+    {
+      const cx = j.x + U / 2;
+      const z = monde.sombres.find((o) => cx > o.x - 2 * U && cx < o.x + o.w + 2 * U);
+      if (z) {
+        const a = Math.max(0, Math.min(1, (cx - (z.x - 2 * U)) / (2 * U), (z.x + z.w + 2 * U - cx) / (2 * U)));
+        const gr = ctx.createRadialGradient(X_CUBE + U / 2, j.y + U / 2, 0, X_CUBE + U / 2, j.y + U / 2, 170);
+        gr.addColorStop(0, "rgba(2,0,8,0)"); gr.addColorStop(0.45, "rgba(2,0,8,0)"); gr.addColorStop(1, `rgba(2,0,8,${0.97 * a})`);
+        ctx.fillStyle = gr; ctx.fillRect(-10, -10, W + 20, H + 20);
+      }
     }
     // haut de l'écran : distance (solo) ou progression de la course
     if (course) {

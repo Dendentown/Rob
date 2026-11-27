@@ -8,7 +8,10 @@
    Il enchaîne des « morceaux » choisis au hasard :
      piques, blocs, montée, descente, trou, plusieurs trous, escalier,
      plafond à piques, tunnel, couloir étroit, slalom, plateformes,
-     zigzag, trois étages, souterrain, tremplin, anneau, double chemin.
+     zigzag, trois étages, souterrain, tremplin, anneau, double chemin,
+     éboulement, ascenseurs, pont qui s'effondre, gravité inversée,
+     tapis roulants, mur à rebond, lasers alternés, pendules, porte à
+     interrupteur, bulles de saut, deux voies, zone sombre.
    Le sol a plusieurs hauteurs (niveaux 0 à 3).
    Des boîtes « ? » sont semées sur le parcours.
    On ne meurt jamais : les erreurs ralentissent ou bloquent (voir etape).
@@ -35,6 +38,7 @@
     options = options || {};
     const m = {
       rects: [], piques: [], tremplins: [], anneaux: [], boites: [], flaques: [], reperes: [],
+      tombants: [], mobiles: [], fragiles: [], portails: [], tapis: [], lasers: [], pendules: [], portes: [], boutons: [], bulles: [], sombres: [],
       fin: options.longueur ? options.longueur * U : Infinity,
       alea: mulberry32(graine >>> 0), xGen: 0, g: 0, id: 0, course: !!options.course,
     };
@@ -194,6 +198,124 @@
       sol(m, cx, cx + U, g);
       return { l: (cx - x) / U + 1, g };
     } },
+    { nom: "eboulement", min: 150, poids: 2, f(m, x, g, a) {
+      // des cubes se détachent du plafond juste avant qu'on arrive : on saute par-dessus une fois tombés
+      const l = 18, yb = yDe(g) - 5 * U;
+      sol(m, x, x + l * U, g);
+      plafond(m, x + 2 * U, x + 16 * U, yb);
+      [5, 10, 14].forEach((i) => m.tombants.push({ id: m.id++, x: x + i * U, y0: yb, yFin: yDe(g) - U, w: U, h: U }));
+      return { l, g };
+    } },
+    { nom: "ascenseurs", min: 200, poids: 2, f(m, x, g, a) {
+      // plateformes qui montent et descendent au-dessus du vide
+      sol(m, x, x + 2 * U, g);
+      let cx = x + 3.5 * U;
+      for (let i = 0; i < 3; i++) {
+        m.mobiles.push({ id: m.id++, x: cx, w: 3 * U, h: 0.5 * U, yc: yDe(g + 0.5), amp: 1.5 * U, P: 2.2 + a() * 0.6, ph: a() * 6.283 });
+        cx += 4.5 * U;
+      }
+      sol(m, cx, cx + 3 * U, g);
+      return { l: (cx - x) / U + 3, g };
+    } },
+    { nom: "effondrement", min: 120, poids: 2, f(m, x, g, a) {
+      // pont de dalles fissurées : elles tombent juste après notre passage
+      sol(m, x, x + 2 * U, g);
+      let cx = x + 2 * U;
+      for (let i = 0; i < 12; i++) {
+        if (i === 6) { cx += 2 * U; continue; }
+        m.fragiles.push({ id: m.id++, x: cx, y: yDe(g), w: U, h: 0.4 * U });
+        cx += U;
+      }
+      sol(m, cx, cx + 3 * U, g);
+      return { l: (cx - x) / U + 3, g };
+    } },
+    { nom: "gravite", min: 300, poids: 2, possible: (g) => g <= 1, f(m, x, g, a) {
+      // un portail retourne le cube : il court au plafond, un second portail le remet à l'endroit
+      const l = 21, yb = yDe(g) - 4.5 * U;
+      sol(m, x, x + l * U, g);
+      plafond(m, x + 3 * U, x + 9 * U, yb); plafond(m, x + 11 * U, x + 18 * U, yb);
+      m.portails.push({ id: m.id++, x: x + 3.5 * U, haut: yb, bas: yDe(g), grav: -1 });
+      pique(m, x + 14 * U, yb, true);
+      if (a() < 0.5) boite(m, x + 6 * U, g + 2.5);
+      m.portails.push({ id: m.id++, x: x + 17 * U, haut: yb, bas: yDe(g), grav: 1 });
+      return { l, g };
+    } },
+    { nom: "tapis", min: 100, poids: 2, f(m, x, g, a) {
+      // tapis roulants : vers l'avant (on file) puis vers l'arrière (on rame)
+      const l = 17;
+      sol(m, x, x + l * U, g);
+      m.tapis.push({ id: m.id++, x: x + U, w: 6 * U, y: yDe(g), dir: 1 });
+      pique(m, x + 9 * U, yDe(g)); pique(m, x + 10 * U, yDe(g));
+      m.tapis.push({ id: m.id++, x: x + 12 * U, w: 5 * U, y: yDe(g), dir: -1 });
+      pique(m, x + 14 * U, yDe(g));
+      return { l, g };
+    } },
+    { nom: "mur-rebond", min: 250, poids: 2, possible: (g) => g <= 1, f(m, x, g, a) {
+      // mur trop haut pour un seul saut : on rebondit contre lui (garder appuyé)
+      const l = 13;
+      sol(m, x, x + l * U, g);
+      m.rects.push({ id: m.id++, x: x + 5 * U, y: yDe(g + 6), w: 2 * U, h: 6 * U, type: "rebond" });
+      if (a() < 0.5) boite(m, x + 6 * U, g + 7.5);
+      return { l, g };
+    } },
+    { nom: "lasers", min: 200, poids: 2, f(m, x, g, a) {
+      // rayons qui s'allument en alternance : celui du bas (sauter) ou celui du haut (rester bas)
+      const l = 14, P = 1.4, ph = a() * 6.283;
+      sol(m, x, x + l * U, g);
+      [5, 10].forEach((i, k) => {
+        const f = ph + k * 1.7;
+        m.lasers.push({ id: m.id++, x: x + i * U + 12, w: 6, y1: yDe(g) - 1.6 * U, y2: yDe(g), P, ph: f });
+        m.lasers.push({ id: m.id++, x: x + i * U + 12, w: 6, y1: yDe(g) - 5 * U, y2: yDe(g) - 2.2 * U, P, ph: f + Math.PI });
+      });
+      return { l, g };
+    } },
+    { nom: "pendules", min: 300, poids: 2, f(m, x, g, a) {
+      // boules à piques qui se balancent juste au-dessus du sol : rester bas passe toujours,
+      // mais la boîte « ? » entre les deux demande de sauter au bon moment
+      const l = 16, yb = yDe(g) - 7.3 * U;
+      sol(m, x, x + l * U, g);
+      plafond(m, x + 3 * U, x + 13 * U, yb);
+      [5.5, 10.5].forEach((i) => m.pendules.push({ id: m.id++, x: x + i * U, py: yb, L: 6 * U, amp: 0.7, P: 2.4, ph: a() * 6.283, r: 13 }));
+      boite(m, x + 8 * U, g + 2.3);
+      return { l, g };
+    } },
+    { nom: "porte", min: 150, poids: 2, f(m, x, g, a) {
+      // un interrupteur sur un socle ouvre la porte ; sinon elle finit par s'ouvrir… après une attente
+      const l = 13;
+      sol(m, x, x + l * U, g);
+      bloc(m, x + 3 * U, g + 2, 2 * U, 2);
+      const porte = { id: m.id++, x: x + 9 * U, y: -400, w: 0.6 * U, h: yDe(g) + 400 };
+      m.portes.push(porte);
+      m.boutons.push({ id: m.id++, x: x + 3.5 * U, y: yDe(g + 2), w: U, porte: porte.id });
+      return { l, g };
+    } },
+    { nom: "bulles", min: 250, poids: 2, f(m, x, g, a) {
+      // grand vide : chaque bulle touchée donne un saut de plus (rappuyer en l'air)
+      sol(m, x, x + 2 * U, g);
+      const b = [[7, 2.5], [12.5, 3], [18, 2.5]];
+      b.forEach(([i, h]) => m.bulles.push({ id: m.id++, x: x + i * U, y: yDe(g + h) }));
+      sol(m, x + 21 * U, x + 24 * U, g);
+      return { l: 24, g };
+    } },
+    { nom: "deux-voies", min: 200, poids: 2, possible: (g) => g <= 2, f(m, x, g, a) {
+      // en haut : court mais plein de piques ; en bas : sûr mais sur un tapis qui freine
+      const l = 20;
+      sol(m, x, x + l * U, g);
+      m.rects.push({ id: m.id++, x: x + 3 * U, y: yDe(g + 3.5), w: 14 * U, h: 0.5 * U, type: "bloc" });
+      [6, 10, 11, 14].forEach((i) => pique(m, x + i * U, yDe(g + 3.5)));
+      m.tapis.push({ id: m.id++, x: x + 3 * U, w: 14 * U, y: yDe(g), dir: -1 });
+      if (a() < 0.6) boite(m, x + 12.5 * U, g + 5.5);
+      return { l, g };
+    } },
+    { nom: "sombre", min: 200, poids: 2, f(m, x, g, a) {
+      // zone sombre : seul un halo autour du cube éclaire
+      const l = 21;
+      sol(m, x, x + l * U, g);
+      m.sombres.push({ id: m.id++, x: x + 2 * U, w: 18 * U });
+      pique(m, x + 5 * U, yDe(g)); pique(m, x + 9 * U, yDe(g)); pique(m, x + 10 * U, yDe(g));
+      bloc(m, x + 13 * U, g + 1); pique(m, x + 17 * U, yDe(g));
+      return { l, g };
+    } },
     { nom: "tremplin", min: 450, poids: 2, f(m, x, g, a) {
       if (g === 0 && a() < 0.5) {
         // le tremplin fait monter sur un sol 3 niveaux plus haut
@@ -240,11 +362,12 @@
     }
   }
 
+  const LISTES = ["rects", "piques", "tremplins", "anneaux", "boites", "flaques", "tombants", "mobiles", "fragiles", "portails", "tapis", "lasers", "pendules", "portes", "boutons", "bulles", "sombres"];
+
   // Oublie ce qui est loin derrière (le mode infini ne grossit pas sans fin)
   function nettoyer(m, xMin) {
     const garde = (o) => o.x + (o.w || U) > xMin;
-    m.rects = m.rects.filter(garde); m.piques = m.piques.filter(garde); m.tremplins = m.tremplins.filter(garde);
-    m.anneaux = m.anneaux.filter(garde); m.boites = m.boites.filter(garde); m.flaques = m.flaques.filter(garde);
+    LISTES.forEach((k) => { m[k] = m[k].filter(garde); });
     m.reperes = m.reperes.filter((r) => r.x > xMin - 2000);
   }
 
@@ -256,72 +379,165 @@
   // La vitesse remonte toute seule (accélération), jusqu'à la vitesse de croisière.
   const ACCEL = 520;
   function nouveauJoueur() {
-    return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0, anneaux: [], flaques: [], boites: [] };
+    return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0,
+      anneaux: [], flaques: [], boites: [], t: 0, grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
+  }
+  // copie indépendante (pour les simulations)
+  function copier(j) {
+    return Object.assign({}, j, { anneaux: j.anneaux.slice(), flaques: j.flaques.slice(), boites: j.boites.slice(), bulles: j.bulles.slice(),
+      trig: Object.assign({}, j.trig), attente: Object.assign({}, j.attente) });
   }
 
-  // point de reprise : le dernier repère derrière le joueur
+  // point de reprise : le dernier repère derrière le joueur (les pièges déclenchés sont remis en place)
   function reprise(j, m, x) {
     const ref = x == null ? j.x - U : x;
     const r = m.reperes.filter((p) => p.x <= ref).pop() || m.reperes[0] || { x: 0, g: 0 };
-    Object.assign(j, { x: r.x + 2, y: yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false });
+    Object.assign(j, { x: r.x + 2, y: yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, grav: 1, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
   }
 
-  const vitesseCroisiere = (j) => vitesseBase(j.x) * (j.boost > 0 ? 1.5 : 1) * (j.lent > 0 ? 0.6 : 1);
+  const vitesseCroisiere = (j) => vitesseBase(j.x) * (j.boost > 0 ? 1.5 : 1) * (j.lent > 0 ? 0.6 : 1) * (j.tapis > 0 ? 1.6 : j.tapis < 0 ? 0.5 : 1);
   const vitesseJoueur = (j) => j.v;
+
+  // ---------- Pièges animés (leur état dépend du temps du joueur et de ce qu'il a déclenché) ----------
+  const CHUTE_DELAI = 0.55, FRAGILE_DELAI = 0.3, PORTE_ATTENTE = 1.0;
+  function yTombant(o, j) { // haut du cube qui tombe
+    const t0 = j.trig[o.id];
+    if (t0 == null) return o.y0;
+    const tau = j.t - t0;
+    return Math.min(o.yFin, o.y0 + 0.5 * G * tau * tau);
+  }
+  const yMobile = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
+  const laserActif = (o, t) => Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
+  function posPendule(o, t) {
+    const th = o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
+    return { x: o.x + o.L * Math.sin(th), y: o.py + o.L * Math.cos(th) };
+  }
+  const fragileTombe = (o, j) => j.trig[o.id] != null && j.t - j.trig[o.id] > FRAGILE_DELAI;
+  const porteOuverte = (o, j) => j.trig[o.id] != null;
+
+  // rectangles solides du moment pour ce joueur (pièges animés compris)
+  function rectsDuMoment(m, j) {
+    const l = m.rects.slice();
+    m.tombants.forEach((o) => { if (!o.detruit) l.push({ x: o.x, y: yTombant(o, j), w: o.w, h: o.h, type: "tombant", src: o }); });
+    m.mobiles.forEach((o) => l.push({ x: o.x, y: yMobile(o, j.t), w: o.w, h: o.h, type: "mobile", src: o }));
+    m.fragiles.forEach((o) => { if (!fragileTombe(o, j)) l.push({ x: o.x, y: o.y, w: o.w, h: o.h, type: "fragile", src: o }); });
+    m.portes.forEach((o) => { if (!o.detruit && !porteOuverte(o, j)) l.push({ x: o.x, y: o.y, w: o.w, h: o.h, type: "porte", src: o }); });
+    return l;
+  }
 
   // Un pas de physique. Renvoie la liste des événements : "choc", "bloque", "chute", "bouclier", "boite", "glisse", "fini"…
   function etape(j, m, dt, appui) {
     const ev = [];
+    j.t += dt;
+    const s = j.grav; // 1 = normal, -1 = la tête en bas
+    const presse = appui && !j.prec; j.prec = appui;
     ["boost", "lent", "stun", "inv"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
+    // déclencheurs : cubes qui tombent quand on arrive
+    for (const o of m.tombants) {
+      if (j.trig[o.id] == null && o.x > j.x && (o.x - j.x) / Math.max(j.v, 60) < CHUTE_DELAI) j.trig[o.id] = j.t;
+    }
     // vitesse horizontale : remonte vers la vitesse de croisière
     const cible = j.stun > 0 ? 0 : vitesseCroisiere(j);
-    if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * dt);
+    if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * (j.tapis > 0 ? 2 : 1) * dt);
     else j.v = Math.max(cible, j.v - ACCEL * 2 * dt);
-    if (appui && j.sol && j.stun <= 0) { j.vy = SAUT; j.sol = false; j.tenu = true; }
-    if (j.tenu && !appui) { if (j.vy < SAUT_COUPE) j.vy = SAUT_COUPE; j.tenu = false; }
-    if (j.vy >= 0) j.tenu = false;
+    if (appui && j.sol && j.stun <= 0) { j.vy = SAUT * s; j.sol = false; j.tenu = true; }
+    else if (presse && !j.sol && j.charge && j.stun <= 0) { j.vy = SAUT * s; j.charge = false; j.tenu = true; ev.push("bulle"); }
+    // saut variable : relâcher tôt coupe la montée
+    if (j.tenu && !appui) { if (j.vy * s < SAUT_COUPE) j.vy = SAUT_COUPE * s; j.tenu = false; }
+    if (j.vy * s >= 0) j.tenu = false;
     const xa = j.x, ya = j.y;
     j.x += j.v * dt;
-    j.vy += G * dt; j.y += j.vy * dt;
+    j.vy += G * s * dt; j.y += j.vy * dt;
     j.sol = false;
 
-    for (const r of m.rects) {
+    let contreMur = false;
+    for (const r of rectsDuMoment(m, j)) {
       if (r.detruit) continue;
       const gx = j.x + 2, dx = j.x + U - 2;
       if (r.x > dx || r.x + r.w < gx) continue;
       if (j.y + U <= r.y || j.y >= r.y + r.h) continue;
-      if (ya + U <= r.y + 10 && j.vy >= 0) { j.y = r.y - U; j.vy = 0; j.sol = true; continue; }     // atterrit dessus
-      if (ya >= r.y + r.h - 10 && j.vy < 0) { j.y = r.y + r.h; j.vy = 0; continue; }                // se cogne dessous
-      // de côté : le turbo casse les blocs, sinon on est bloqué contre
-      if (r.type !== "sol" && j.boost > 0) { r.detruit = true; ev.push("casse"); continue; }
-      j.x = Math.min(j.x, r.x - U + 1); j.v = 0;
-      if (!ev.includes("bloque")) ev.push("bloque");
+      if (r.type === "tombant" && r.y < r.src.yFin) { // cube en train de tomber : il nous assomme
+        if (j.inv <= 0 && !j.bouclier) { j.v *= 0.25; j.inv = 0.7; ev.push("choc"); }
+        else if (j.bouclier && j.inv <= 0) { j.bouclier = false; r.src.detruit = true; ev.push("bouclier"); }
+        continue;
+      }
+      const dessus = ya + U <= r.y + 12 && j.vy >= (r.type === "mobile" ? -200 : 0);
+      const dessous = ya >= r.y + r.h - 12 && j.vy <= 0;
+      if (dessus && !(s < 0 && j.vy < 0)) { j.y = r.y - U; j.vy = 0; if (s > 0) j.sol = true; else ev.push("cogne"); }
+      else if (dessous) { j.y = r.y + r.h; j.vy = 0; if (s < 0) j.sol = true; }
+      else if (r.type !== "sol" && r.type !== "plafond" && r.type !== "mobile" && r.type !== "fragile" && j.boost > 0) {
+        if (r.src) r.src.detruit = true; else r.detruit = true;
+        ev.push("casse");
+      } else {
+        // de côté : on est bloqué contre
+        j.x = Math.min(j.x, r.x - U + 1); j.v = 0; contreMur = true;
+        if (r.type === "porte") {
+          j.attente[r.src.id] = (j.attente[r.src.id] || 0) + dt;
+          if (j.attente[r.src.id] > PORTE_ATTENTE) { j.trig[r.src.id] = j.t; ev.push("porte"); }
+        }
+        if (r.type === "rebond" && appui && !j.sol && j.rebonds < 4 && j.vy * s > -250) {
+          j.vy = SAUT * s; j.tenu = true; j.rebonds++; ev.push("rebond");
+        }
+        if (!ev.includes("bloque")) ev.push("bloque");
+      }
+    }
+    if (j.sol) { j.rebonds = 0; j.charge = false; }
+    // dalles fragiles : elles cèdent peu après qu'on a marché dessus
+    for (const o of m.fragiles) {
+      if (j.trig[o.id] == null && j.sol && Math.abs(j.y + U - o.y) < 2 && j.x + U - 2 > o.x && j.x + 2 < o.x + o.w) j.trig[o.id] = j.t;
+    }
+    // tapis roulants
+    j.tapis = 0;
+    if (j.sol) for (const o of m.tapis) if (Math.abs(j.y + U - o.y) < 3 && j.x + U / 2 > o.x && j.x + U / 2 < o.x + o.w) j.tapis = o.dir;
+
+    const touche = (hx1, hx2, hy1, hy2) => j.x + U - 6 > hx1 && j.x + 6 < hx2 && j.y + U - 4 > hy1 && j.y + 4 < hy2;
+    function aie(src, bas) {
+      if (j.boost > 0 && src) { src.detruit = true; ev.push("casse"); return; }
+      if (j.inv > 0) return;
+      if (j.bouclier) { j.bouclier = false; if (src) src.detruit = true; ev.push("bouclier"); return; }
+      j.v *= 0.25; j.inv = 0.7;
+      j.vy = bas ? Math.max(j.vy, 250) : Math.min(j.vy, -380); // vers le bas (plafond) ou petit rebond
+      ev.push("choc");
     }
     for (const p of m.piques) {
       if (p.detruit || p.x > j.x + U || p.x + U < j.x) continue;
       // zone dangereuse plus petite que le dessin
       const hx1 = p.x + 9, hx2 = p.x + U - 9;
       const hy1 = p.bas ? p.y : p.y - U + 12, hy2 = p.bas ? p.y + U - 12 : p.y;
-      if (j.x + U - 6 > hx1 && j.x + 6 < hx2 && j.y + U > hy1 && j.y < hy2) {
-        if (j.boost > 0) { p.detruit = true; ev.push("casse"); continue; }
-        if (j.inv > 0) continue;
-        if (j.bouclier) { j.bouclier = false; p.detruit = true; ev.push("bouclier"); continue; }
-        j.v *= 0.25; j.inv = 0.7;
-        j.vy = p.bas ? Math.max(j.vy, 250) : Math.min(j.vy, -380); // pique du plafond : on est renvoyé vers le bas
-        ev.push("choc");
-      }
+      if (j.x + U - 6 > hx1 && j.x + 6 < hx2 && j.y + U > hy1 && j.y < hy2) aie(p, p.bas);
     }
-    if (j.y > H) {
-      if (j.bouclier) { j.bouclier = false; j.vy = SAUT_TREMPLIN * 1.1; j.y = H - 1; ev.push("bouclier"); }
+    for (const o of m.lasers) {
+      if (o.detruit || o.x > j.x + U || o.x + o.w < j.x || !laserActif(o, j.t)) continue;
+      if (touche(o.x, o.x + o.w, o.y1, o.y2)) aie(o, s < 0);
+    }
+    for (const o of m.pendules) {
+      if (o.detruit || Math.abs(o.x - j.x) > o.L + U) continue;
+      const b = posPendule(o, j.t);
+      const cx = Math.max(j.x + 3, Math.min(b.x, j.x + U - 3)), cy = Math.max(j.y + 3, Math.min(b.y, j.y + U - 3));
+      if ((cx - b.x) ** 2 + (cy - b.y) ** 2 < (o.r - 3) ** 2) aie(o, b.y < j.y);
+    }
+    if (j.y > H || j.y < -2 * U) {
+      if (j.bouclier && s > 0) { j.bouclier = false; j.vy = SAUT_TREMPLIN * 1.1; j.y = H - 1; ev.push("bouclier"); }
       else { reprise(j, m, xa - U); j.stun = 0.35; ev.push("chute"); return ev; }
     }
-    for (const t of m.tremplins) {
+    for (const o of m.portails) {
+      if (xa + U / 2 < o.x && j.x + U / 2 >= o.x && j.grav !== o.grav) { j.grav = o.grav; j.sol = false; j.tenu = false; ev.push("portail"); }
+    }
+    if (s > 0) for (const t of m.tremplins) {
       if (t.x > j.x + U || t.x + U < j.x) continue;
       if (j.y + U >= t.y - 8 && j.y + U <= t.y + 2 && j.vy >= 0) { j.vy = SAUT_TREMPLIN; j.sol = false; j.tenu = false; ev.push("tremplin"); }
     }
     for (const a of m.anneaux) {
       if (!appui || j.anneaux.includes(a.id)) continue;
-      if (Math.abs(j.x + U / 2 - a.x) < U && Math.abs(j.y + U / 2 - a.y) < U) { j.vy = SAUT; j.tenu = true; j.anneaux.push(a.id); ev.push("anneau"); }
+      if (Math.abs(j.x + U / 2 - a.x) < U && Math.abs(j.y + U / 2 - a.y) < U) { j.vy = SAUT * s; j.tenu = true; j.anneaux.push(a.id); ev.push("anneau"); }
+    }
+    for (const o of m.bulles) {
+      if (j.bulles.includes(o.id)) continue;
+      if (Math.abs(j.x + U / 2 - o.x) < U * 0.95 && Math.abs(j.y + U / 2 - o.y) < U * 0.95) { j.bulles.push(o.id); j.charge = true; ev.push("bulle-prise"); }
+    }
+    for (const o of m.boutons) {
+      if (j.trig[o.porte] != null) continue;
+      if (j.x + U > o.x && j.x < o.x + o.w && j.y + U > o.y - 10 && j.y < o.y) { j.trig[o.porte] = j.t; ev.push("porte"); }
     }
     for (const b of m.boites) {
       if (j.boites.includes(b.id)) continue;
@@ -335,7 +551,7 @@
       }
     }
     if (j.sol) j.rot = Math.round(j.rot / (Math.PI / 2)) * (Math.PI / 2);
-    else j.rot += dt * 7.5;
+    else j.rot += dt * 7.5 * s;
     if (j.x >= m.fin) ev.push("fini");
     return ev;
   }
@@ -346,6 +562,7 @@
     let n = 0;
     m.rects.forEach((r) => { if (r.type !== "sol" && !r.detruit && r.x < x2 && r.x + r.w > x1) { r.detruit = true; n++; } });
     m.piques.forEach((p) => { if (!p.detruit && p.x < x2 && p.x + U > x1) { p.detruit = true; n++; } });
+    ["tombants", "lasers", "pendules", "portes"].forEach((k) => m[k].forEach((o) => { if (!o.detruit && o.x < x2 && o.x + (o.w || U) > x1) { o.detruit = true; n++; } }));
     return { x1, x2, n };
   }
 
@@ -355,7 +572,8 @@
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, reprise, etape, laser, solSous, MORCEAUX };
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, etape, laser, solSous, MORCEAUX, LISTES,
+    yTombant, yMobile, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
 })(typeof window !== "undefined" ? window : globalThis);
