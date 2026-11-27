@@ -182,13 +182,16 @@
       const haut = { id: m.id++, x: x + 6 * U, y: yDe(g + 3), w: 2 * U, h: 3 * U, type: "bloc" };
       m.rects.push(haut);
       if (a() < 0.45) {
-        // l'escalier mène à une plateforme haute (en bas, des piques à sauter sous elle)
-        const l = 21;
+        // plateforme haute PLUS LOIN, séparée de l'escalier par du vide : on ne l'atteint qu'en sautant
+        // du haut des marches (une boîte flotte dans le vide, au sommet du grand saut).
+        // On peut aussi l'ignorer et passer en bas.
+        const l = 29;
         sol(m, x, x + l * U, g);
-        dalle(m, x + 8 * U, x + 18 * U, g + 3);
-        pique(m, x + 11 * U, yDe(g)); pique(m, x + 15 * U, yDe(g));
-        if (a() < 0.5) pique(m, x + 13 * U, yDe(g + 3));
-        if (a() < 0.5) boite(m, x + 16.5 * U, g + 4.2);
+        dalle(m, x + 15 * U, x + 25 * U, g + 5);
+        pique(m, x + 13 * U, yDe(g)); pique(m, x + 20 * U, yDe(g));
+        const s0 = sommetSautMax(haut);
+        m.boites.push({ id: m.id++, x: s0.x + U / 2, y: s0.y + U / 2 });
+        if (a() < 0.5) boite(m, x + 23 * U, g + 6.2);
         return { l, g };
       }
       // long tapis de piques après l'escalier : il FAUT le plus grand saut, depuis le haut des marches.
