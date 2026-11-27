@@ -528,7 +528,7 @@
     if (j.tenu && !appui) j.tenu = false;
     if (j.vy * s >= 0) j.tenu = false;
     const xa = j.x, ya = j.y;
-    if (j.recul > 0) { j.recul = Math.max(0, j.recul - dt); j.v = 0; j.x -= 420 * dt; } // repoussé en arrière par une scie
+    if (j.recul > 0) { j.recul = Math.max(0, j.recul - dt); j.v = 0; j.x -= 480 * dt; } // repoussé en arrière par une scie
     else j.x += j.v * dt;
     j.vy += G * (j.tenu ? G_TENU : 1) * s * dt; j.y += j.vy * dt;
     j.sol = false;
@@ -602,7 +602,14 @@
       if (o.detruit || Math.abs(o.x - j.x) > o.L + U) continue;
       const b = posPendule(o, j.t);
       const cx = Math.max(j.x + 3, Math.min(b.x, j.x + U - 3)), cy = Math.max(j.y + 3, Math.min(b.y, j.y + U - 3));
-      if ((cx - b.x) ** 2 + (cy - b.y) ** 2 < (o.r - 3) ** 2) { const avant = ev.length; aie(o, b.y < j.y); if (ev.length > avant && ev[ev.length - 1] === "choc") { j.recul = 0.3; j.v = 0; ev.push("recul"); } }
+      if ((cx - b.x) ** 2 + (cy - b.y) ** 2 < (o.r - 3) ** 2) {
+        // une scie touchée repousse TOUJOURS en arrière (sauf avec le turbo, qui la casse)
+        if (j.boost > 0) { o.detruit = true; ev.push("casse"); }
+        else if (j.recul <= 0) {
+          j.recul = 0.35; j.v = 0; j.inv = 0.7; j.vy = b.y < j.y + U / 2 ? Math.max(j.vy, 200) : -420;
+          ev.push("choc", "recul");
+        }
+      }
     }
     if (j.y > H || j.y < -2 * U) {
       if (j.bouclier && s > 0) { j.bouclier = false; j.vy = SAUT_TREMPLIN * 1.1; j.y = H - 1; ev.push("bouclier"); }
