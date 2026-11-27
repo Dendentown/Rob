@@ -65,6 +65,7 @@
     });
     tm.piques.forEach((p) => m.piques.push(Object.assign({}, p, { y: MIROIR - p.y, bas: !p.bas })));
     tm.boites.forEach((b) => m.boites.push(Object.assign({}, b, { y: MIROIR - b.y })));
+    tm.bulles.forEach((b) => m.bulles.push(Object.assign({}, b, { y: MIROIR - b.y })));
   }
 
   function sol(m, x1, x2, g) { m.rects.push({ id: m.id++, x: x1, y: yDe(g), w: x2 - x1, h: H + 300 - yDe(g), type: "sol" }); }
@@ -101,7 +102,9 @@
         } else {
           const np = 1 + ((a() * 3) | 0);
           for (let i = 0; i < np; i++) pique(m, x + (cx + i) * U, yDe(g));
-          if (a() < 0.25) boite(m, x + (cx + np / 2) * U, g + 3);
+          // une fois sur deux, une bulle de saut au-dessus des piques
+          if (a() < 0.5) m.bulles.push({ id: m.id++, x: x + (cx + np / 2) * U, y: yDe(g + 2.5) });
+          else if (a() < 0.25) boite(m, x + (cx + np / 2) * U, g + 3);
           cx += np;
         }
         typeBloc = !typeBloc;
