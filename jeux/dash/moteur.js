@@ -860,7 +860,7 @@
 
   // Laser : détruit les obstacles (pas le sol) devant le joueur
   // Laser : rayon en LIGNE DROITE devant le cube, jusqu'au bord de l'écran (portee en px).
-  // Il détruit les obstacles (pas le sol ni les plafonds) qui croisent la bande à hauteur du cube.
+  // Il ne détruit que ce qui est rose (piques, scies) et croise la bande à hauteur du cube.
   function laser(j, m, portee) {
     const x1 = j.x + U, x2 = j.x + (portee || 620);
     const y1 = j.y - 1.5 * U, y2 = j.y + 2.5 * U;
@@ -868,12 +868,9 @@
     const dansY = (a, b) => a < y2 && b > y1;
     let n = 0;
     const casser = (o) => { o.detruit = true; n++; };
-    m.rects.forEach((r) => { if (!r.detruit && !r.fixe && r.type !== "sol" && r.type !== "plafond" && dansX(r.x, r.w) && dansY(r.y, r.y + r.h)) casser(r); });
+    // le laser ne détruit que ce qui est ROSE : piques, scies (pendules et scies volantes)
     m.piques.forEach((p) => { if (!p.detruit && dansX(p.x) && (p.bas ? dansY(p.y, p.y + U) : dansY(p.y - U, p.y))) casser(p); });
-    m.tombants.forEach((o) => { const y = yTombant(o, j); if (!o.detruit && dansX(o.x, o.w) && dansY(y, y + o.h)) casser(o); });
-    m.lasers.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y1, o.y2)) casser(o); });
     m.pendules.forEach((o) => { const b = posPendule(o, j.t); if (!o.detruit && dansX(b.x - o.r, 2 * o.r) && dansY(b.y - o.r, b.y + o.r)) casser(o); });
-    m.portes.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y, o.y + o.h)) casser(o); });
     m.scies.forEach((o) => { const y = yScie(o, j.t); if (!o.detruit && dansX(o.x - o.r, 2 * o.r) && dansY(y - o.r, y + o.r)) casser(o); });
     return { x1, x2, y: j.y + U / 2, n };
   }

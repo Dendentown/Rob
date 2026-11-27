@@ -22,7 +22,7 @@
        point le plus bas ; garder le bouton appuyé = continuer à se balancer,
        le lâcher = partir avec la vitesse du moment, gardée 1 s
      L laser (rayon en ligne droite jusqu'au bord de l'écran : détruit
-       les obstacles à hauteur du cube)
+       ce qui est rose — piques, scies — à hauteur du cube)
    En COURSE, des objets contre les autres :
      R ralentir (tous les autres pendant 3 s)
      F flaque d'eau (qui passe dessus glisse : immobilisé 1 s)
@@ -132,7 +132,7 @@
       } else M.accrocher(j, monde); // sinon : au plafond, et on se balance vers l'avant
     }
     majBoutonObjet();
-    if (o === "turbo") j.boost = 2.5;
+    if (o === "turbo") j.boost = 1.5;
     if (o === "bouclier") j.bouclier = true;
     if (o === "laser") {
       const r = M.laser(j, monde, W - X_CUBE); // jusqu'au bord de l'écran
