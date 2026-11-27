@@ -32,8 +32,8 @@
   const LONGUEUR_COURSE = 600; // blocs
   const COULEURS = ["#19f0ff", "#ff2bd6", "#3dff7a", "#ffe14d", "#ff8a1f", "#b388ff", "#ff3b3b", "#ffffff"];
   const OBJETS = {
-    turbo: { lettre: "T", c: "#ff8a1f" }, bouclier: { lettre: "B", c: "#3dff7a" }, laser: { lettre: "L", c: "#ff2bd6" },
-    ralentir: { lettre: "R", c: "#b388ff" }, flaque: { lettre: "F", c: "#19f0ff" }, grappin: { lettre: "G", c: "#ffe14d" },
+    turbo: { lettre: "T", nom: "TURBO", c: "#ff8a1f" }, bouclier: { lettre: "B", nom: "BOUCLIER", c: "#3dff7a" }, laser: { lettre: "L", nom: "LASER", c: "#ff2bd6" },
+    ralentir: { lettre: "R", nom: "RALENTIR", c: "#b388ff" }, flaque: { lettre: "F", nom: "FLAQUE", c: "#19f0ff" }, grappin: { lettre: "G", nom: "GRAPPIN", c: "#ffe14d" },
   };
   const canvas = document.querySelector("#ecran");
   const ctx = canvas.getContext("2d");
@@ -73,7 +73,11 @@
     }
   });
   addEventListener("keyup", (e) => { const k = e.key.toLowerCase(); if (k === " " || k === "arrowup" || k === "z" || k === "w") appui = false; });
-  canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); presser(); });
+  // on saute en appuyant n'importe où sur l'écran (sauf sur les boutons) ; plus l'appui dure, plus le saut est haut
+  addEventListener("pointerdown", (e) => {
+    if (etat !== "jeu" || e.target.closest("button, .modal")) return;
+    e.preventDefault(); presser();
+  });
   addEventListener("pointerup", () => { appui = false; });
   addEventListener("pointercancel", () => { appui = false; });
   $("#btn-objet").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); utiliserObjet(); });
@@ -87,7 +91,7 @@
   }
   function majBoutonObjet() {
     const b = $("#btn-objet");
-    b.textContent = objet ? OBJETS[objet].lettre : "";
+    b.textContent = objet ? OBJETS[objet].nom : "—";
     b.style.setProperty("--c", objet ? OBJETS[objet].c : "#4a3a66");
     b.disabled = !objet;
   }
