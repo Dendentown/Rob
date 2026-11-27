@@ -26,4 +26,13 @@ const CATEGORIES = [
 // { titre: "Mon jeu", description: "…", categorie: "calcul",
 //   niveau: "5e", dossier: "mon-jeu", statut: "disponible" },
 const JEUX = [
+  {
+    titre: "Pong",
+    description: "Seul contre le bot, ou en 1 contre 1 dans le lobby. La balle accélère sans fin !",
+    categorie: "reflexe",
+    icone: "🏓",
+    niveau: "Tous niveaux",
+    dossier: "pong",
+    statut: "disponible",
+  },
 ];

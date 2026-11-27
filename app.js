@@ -147,7 +147,7 @@
     el.type = "button";
     el.className = "carte cat-" + cat.id + (choisi ? " choisie" : "");
     el.innerHTML = `
-      <div class="carte-icone">${cat.emoji}</div>
+      <div class="carte-icone">${jeu.icone || cat.emoji}</div>
       <div class="carte-corps">
         <span class="etiquette"></span><h3></h3><p></p>
         <div class="carte-bas"><span class="niveau"></span><span class="action">${choisi ? "Choisi ✔" : "Choisir"}</span></div>

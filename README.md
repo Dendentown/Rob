@@ -37,14 +37,26 @@ Scores rangés dans `rob/scores/<jeu>/<pseudo>`. Le calcul est dans `commun/scor
 index.html            menu, lobby, classements
 style.css             style arcade (pixel art, néons)
 app.js                logique du menu, du lobby et des classements
-jeux.js               ⭐ LISTE DES JEUX — vide pour l'instant
+jeux.js               ⭐ LISTE DES JEUX
 commun/reseau.js      ⭐ lobby + connexion Firebase
 commun/scores.js      ⭐ scores et classements
 lib/                  bibliothèques Firebase + QR code (en local)
+jeux/pong/            🏓 Pong
 jeux/_modele/         modèle de jeu (joueurs déjà connectés, tableau des scores)
 database.rules.json   règles Firebase à copier dans la console
 404.html              « GAME OVER »
 ```
+
+## Les jeux
+
+### 🏓 Pong
+- **Seul** (ou seul dans le lobby) : contre un bot.
+- **À deux dans le lobby** : 1 contre 1. L'hôte ★ a la raquette de gauche et calcule la partie ; l'invité a la raquette de droite. Les autres joueurs du lobby regardent.
+- Si l'adversaire quitte pendant la partie, le bot prend le relais.
+- Premier à 5 points. Commandes : ↑ ↓ (ou Z / S), ou glisser au doigt / à la souris.
+- **Vitesse de la balle** : `v(n) = V0 × (1 + 0,45 × ln(1 + n))`, n = nombre de renvois depuis le début de l'échange. Croissance logarithmique, sans maximum : ×1,8 après 5 renvois, ×2,1 après 10, ×2,5 après 30, ×3,1 après 100.
+- Le bot vise de moins en moins bien quand la balle accélère : il finit par rater.
+- **Score d'une partie** : 100 par point marqué + le plus long échange.
 
 ## Ajouter un jeu
 

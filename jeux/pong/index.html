@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Pong — Rob</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../style.css" />
+  <style>
+    body::before { opacity: 0.25; }
+    main { width: min(960px, 100% - 1rem); }
+    .barre {
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      margin: 1rem 0 0.8rem; font: 0.6rem/1.6 var(--pixel); text-transform: uppercase;
+    }
+    .barre .j1 { color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
+    .barre .j2 { color: var(--rose); text-shadow: 0 0 6px var(--rose); text-align: right; }
+    .barre .mode { color: var(--jaune); text-align: center; }
+    .terrain {
+      --c: var(--cyan);
+      position: relative;
+      border: 3px solid var(--cyan);
+      box-shadow: 0 0 0 3px var(--nuit), 0 0 0 6px var(--cyan), 0 0 24px 4px rgba(25, 240, 255, 0.45);
+      background: #000;
+      touch-action: none;
+      user-select: none;
+    }
+    canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    .overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2rem;
+      background: rgba(5, 1, 15, 0.82); text-align: center; padding: 1rem;
+    }
+    .overlay h2 { font: clamp(1rem, 4vw, 2rem)/1.5 var(--pixel); margin: 0; color: #fff; text-shadow: 3px 3px 0 var(--rose), var(--halo-cyan); }
+    .overlay p { margin: 0; font-size: 1.3rem; }
+    .overlay .boutons { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
+    .aide-jeu { text-align: center; color: var(--doux); font-size: 1.15rem; margin: 1rem 0 0; }
+    .bas { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; margin: 1.5rem 0; }
+    #classement { width: min(560px, 100%); }
+    .titre-classement { font: 0.75rem var(--pixel); color: var(--jaune); text-transform: uppercase; margin: 0.5rem 0 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="barre">
+      <span class="j1" id="nom1">—</span>
+      <span class="mode" id="mode"></span>
+      <span class="j2" id="nom2">—</span>
+    </div>
+
+    <div class="terrain" id="terrain">
+      <canvas id="ecran" width="800" height="500"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="ov-titre">PONG</h2>
+        <p id="ov-texte">Chargement…</p>
+        <div class="boutons" id="ov-boutons"></div>
+      </div>
+    </div>
+
+    <p class="aide-jeu" id="aide">Clavier : ↑ ↓ (ou Z / S) — Tactile / souris : fais glisser sur le terrain.</p>
+
+    <div class="bas">
+      <button id="btn-quitter" class="lien">◀ Quitter</button>
+      <p class="titre-classement">🏆 Classement Pong</p>
+      <div id="classement" class="zone-scores" style="--c: var(--jaune)"></div>
+      <p class="aide">Score d'une partie : 100 par point marqué + ton plus long échange.</p>
+    </div>
+  </main>
+
+  <script src="../../lib/firebase-app-compat.js"></script>
+  <script src="../../lib/firebase-database-compat.js"></script>
+  <script src="../../lib/qrcode.js"></script>
+  <script src="../../commun/reseau.js"></script>
+  <script src="../../jeux.js"></script>
+  <script src="../../commun/scores.js"></script>
+  <script src="pong.js"></script>
+</body>
+</html>
