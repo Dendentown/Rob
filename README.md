@@ -1,61 +1,69 @@
-# 🎮 Rob — plateforme de mini-jeux
+# 🕹️ Rob — salle d'arcade de la classe
 
-Une page d'accueil où les élèves choisissent un mini-jeu ou rejoignent la partie lancée par le prof.
+Plateforme de mini-jeux en style arcade années 80.
 
 - **Hébergement : GitHub Pages** → https://dendentown.github.io/rob/
-- **Connexion : Firebase Realtime Database**, utilisée seulement comme relais (même base que La Ruée vers l'Or). Le tableau du prof et les téléphones s'échangent des messages par les serveurs de Google : personne ne se connecte à l'ordinateur du prof, et ça passe les pare-feux d'établissement.
+- **Connexion : Firebase Realtime Database**, utilisée seulement comme relais (même base que La Ruée vers l'Or). Les appareils s'échangent des messages par les serveurs de Google : personne ne se connecte à l'ordinateur du prof, et ça passe les pare-feux d'établissement.
 
-## Mettre en ligne (une seule fois)
+## Mise en route (une seule fois)
 
-Sur GitHub : dépôt **rob** → **Settings** → **Pages** → *Source : Deploy from a branch* → branche **main**, dossier **/ (root)** → **Save**.
-Une ou deux minutes plus tard, le site est à l'adresse https://dendentown.github.io/rob/. Ensuite, chaque modification poussée sur `main` est mise en ligne automatiquement.
+1. **GitHub Pages** : dépôt **rob** → **Settings** → **Pages** → *Deploy from a branch* → **main**, dossier **/ (root)** → **Save**. Ensuite, chaque modification poussée sur `main` est mise en ligne automatiquement.
+2. **Règles Firebase** (pour les classements) : console Firebase → projet **ruee-vers-l-or** → **Realtime Database** → onglet **Règles** → remplacer tout par le contenu de [`database.rules.json`](database.rules.json) → **Publier**.
+   Ces règles gardent exactement celles de La Ruée vers l'Or et ajoutent seulement `rob/scores`.
+
+## Comment ça marche
+
+1. Chaque joueur entre son **pseudo** (son pseudo = son compte : le même pseudo sur un autre appareil retrouve ses scores).
+2. Un joueur **crée un lobby** → il devient l'**hôte ★** ; un code et un QR code s'affichent.
+3. Les autres **rejoignent** avec le code, le QR code ou le lien.
+4. **Seul l'hôte choisit le jeu** et clique sur **Lancer la partie** : tout le monde arrive sur la page du jeu.
+5. À la fin, l'hôte peut ramener tout le monde au lobby. S'il quitte le lobby, il est fermé pour tous.
+
+Les lobbys sont rangés dans `games/<CODE>` et effacés automatiquement au bout de 24 h.
+
+## Classements
+
+- **Chaque jeu** a son tableau des scores (meilleur score de chaque joueur, avec son rang).
+- **Score total** (affiché dans le menu, sur 1000) :
+  1. à chaque jeu joué, des points selon le rang : `1000 × (N − rang + 1) / N` (N = nombre de joueurs de ce jeu) → le 1er a 1000 ;
+  2. moyenne de ces points, **pondérée par la fréquentation** de chaque jeu (nombre total de parties jouées dessus) → un jeu très joué compte plus.
+- Bouton **🏆 Classements** dans le menu : classement général + un onglet par jeu.
+
+Scores rangés dans `rob/scores/<jeu>/<pseudo>`. Le calcul est dans `commun/scores.js`.
 
 ## Organisation
 
 ```
-index.html            page d'accueil (liste des jeux + « Rejoindre une partie »)
-style.css             apparence commune
-app.js                affiche les cartes, gère le code de partie
-jeux.js               ⭐ LISTE DES JEUX — c'est ici qu'on ajoute un jeu
-commun/reseau.js      ⭐ connexion Firebase partagée par tous les jeux
-lib/                  bibliothèques Firebase + QR code (copiées en local)
-jeux/_modele/         modèle de jeu : salle d'attente prof / élèves déjà prête
-404.html              page « introuvable »
+index.html            menu, lobby, classements
+style.css             style arcade (pixel art, néons)
+app.js                logique du menu, du lobby et des classements
+jeux.js               ⭐ LISTE DES JEUX — vide pour l'instant
+commun/reseau.js      ⭐ lobby + connexion Firebase
+commun/scores.js      ⭐ scores et classements
+lib/                  bibliothèques Firebase + QR code (en local)
+jeux/_modele/         modèle de jeu (joueurs déjà connectés, tableau des scores)
+database.rules.json   règles Firebase à copier dans la console
+404.html              « GAME OVER »
 ```
-
-## Comment se passe une partie
-
-1. Le prof ouvre un jeu au tableau → **Créer une partie** → un code (ex. `GV9ZV`) et un QR code s'affichent.
-2. Les élèves scannent le QR code, ou vont sur la page d'accueil et tapent le code.
-3. Ils entrent leur prénom ; le tableau affiche la liste des joueurs en direct.
-
-Les parties sont rangées dans `games/<CODE>` de la base et effacées automatiquement au bout de 24 h.
 
 ## Ajouter un jeu
 
 1. Copier `jeux/_modele/` en `jeux/mon-jeu/`.
-2. Dans `jeux/mon-jeu/index.html`, remplacer `const JEU = "_modele";` par `const JEU = "mon-jeu";`.
-3. Dans `jeux.js`, ajouter une entrée :
+2. Dans `jeux/mon-jeu/index.html`, mettre `const JEU = "mon-jeu";`.
+3. Dans `jeux.js`, ajouter :
    ```js
    { titre: "Mon jeu", description: "…", categorie: "calcul",
      niveau: "5e", dossier: "mon-jeu", statut: "disponible" }
    ```
+   Ajouter `scoreInverse: true` si un score plus petit est meilleur (ex. un temps).
+4. En fin de partie, dans le jeu : `Scores.enregistrer(JEU, score)` (ou `Scores.enregistrer(JEU, score, "Pseudo")` pour un autre joueur).
 
-### Outils réseau disponibles dans chaque jeu (`Reseau.…`)
+### Outils disponibles dans chaque jeu
 
 | Fonction | Rôle |
 |---|---|
-| `creerPartie(jeu)` | prof : crée la partie, renvoie `{ code, ref }` |
-| `rejoindre(code, nom)` | élève : rejoint, renvoie `{ ref, moi, id }` |
-| `lienRejoindre(jeu, code)` | adresse à mettre dans le QR code |
-| `qr(texte)` | QR code en SVG |
-| `enc(objet)` / `dec(valeur)` | emballer / déballer un message JSON |
-| `TS()` | heure du serveur |
-| `testerConnexion(element)` | vérifie que le réseau laisse passer |
-
-`ref` est une référence Firebase classique : `ref.child("etat").set(...)`, `ref.child("joueurs").on("value", ...)`, etc.
-
-## Attention
-
-- Ouvert en double-cliquant sur `index.html`, le site s'affiche mais le jeu en réseau n'est garanti qu'en ligne (GitHub Pages).
-- Faire un essai avec **Tester la connexion** (bas de la page d'accueil) sur le wifi du collège avant le cours ; si ça bloque, passer les téléphones en 4G.
+| `Reseau.session.lire()` | `{ code, id, nom }` : le lobby et moi |
+| `Reseau.lobby(code)` | référence Firebase du lobby (`games/<code>`) pour ranger l'état du jeu |
+| `Reseau.enc(objet)` / `Reseau.dec(valeur)` | emballer / déballer un message JSON |
+| `Scores.enregistrer(jeu, score, nom?)` | enregistrer un score |
+| `Scores.ecouter(cb)` + `Scores.tableau(el, data, jeu, cle)` | afficher un classement en direct |

@@ -12,53 +12,31 @@
       background: rgba(5, 1, 15, 0.9);
       padding: 2rem;
       min-height: 50vh;
+      margin-top: 2rem;
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
       text-align: center;
     }
     .zone-jeu h2 { font: 1rem/1.6 var(--pixel); color: var(--rose); text-shadow: var(--halo-rose); }
-    .retour { display: inline-block; margin: 1.5rem 0 1.5rem; font: 0.65rem var(--pixel); color: var(--cyan); text-decoration: none; text-transform: uppercase; }
-    .retour:hover { color: #fff; }
-    .gros-code { font: 3rem var(--pixel); letter-spacing: 0.2em; margin: 0.8rem 0 1.2rem; color: #fff; text-shadow: 4px 4px 0 var(--rose), var(--halo-cyan); }
-    .qr { display: inline-block; background: #fff; padding: 6px; box-shadow: 0 0 0 3px var(--cyan), 0 0 18px var(--cyan); }
-    .qr svg { width: 200px; height: 200px; display: block; }
-    .joueurs { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; }
-    .joueurs li { font: 0.65rem var(--pixel); color: var(--vert); border: 2px solid var(--vert); padding: 0.5rem 0.7rem; text-shadow: 0 0 6px var(--vert); }
-    input.nom { font: 0.9rem var(--pixel); background: var(--nuit); color: #fff; border: 3px solid var(--rose); padding: 0.6rem; text-align: center; margin: 0.5rem; outline: none; }
+    .joueurs { max-width: 420px; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
-    <a class="retour" href="../../">◀ Retour</a>
-
     <div class="zone-jeu">
-      <!-- ÉCRAN D'ACCUEIL DU JEU -->
-      <section id="ecran-choix">
-        <h2>Nouveau jeu</h2>
-        <p>Modèle : copie ce dossier pour commencer un nouveau mini-jeu.</p>
-        <button class="bouton" id="btn-creer">Créer une partie</button>
-      </section>
+      <h2>Nouveau jeu</h2>
+      <p class="aide">Modèle : copie ce dossier pour commencer un nouveau mini-jeu.</p>
+      <p>Lobby <strong id="code"></strong> — <span id="role"></span></p>
+      <ul class="joueurs" id="liste-joueurs"></ul>
 
-      <!-- ÉCRAN DU PROF (au tableau) -->
-      <section id="ecran-prof" hidden>
-        <p>Code de la partie :</p>
-        <div class="gros-code" id="code-affiche"></div>
-        <div class="qr" id="qr"></div>
-        <p><strong id="nb-joueurs">0</strong> joueur(s) connecté(s)</p>
-        <ul class="joueurs" id="liste-joueurs"></ul>
-        <!-- Ici : bouton « Lancer la partie », puis le jeu côté tableau -->
-      </section>
+      <!-- Le jeu se construit ici -->
 
-      <!-- ÉCRAN DE L'ÉLÈVE (téléphone) -->
-      <section id="ecran-eleve" hidden>
-        <form id="form-nom">
-          <p>Partie <strong id="code-eleve"></strong> — ton prénom :</p>
-          <input class="nom" id="nom" maxlength="20" required autocomplete="off" />
-          <button class="bouton" type="submit">C'est parti</button>
-        </form>
-        <p id="attente" hidden>Tu es connecté·e ! Attends que le prof lance la partie…</p>
-        <p id="erreur" class="test-reseau ko"></p>
-        <!-- Ici : le jeu côté téléphone -->
-      </section>
+      <p id="message" class="message" role="status"></p>
+
+      <!-- Tableau des scores de ce jeu (mis à jour en direct) -->
+      <h2>🏆 Classement</h2>
+      <div id="classement" class="zone-scores" style="--c: var(--jaune); max-width: 560px"></div>
+      <button id="btn-retour" class="bouton" hidden>◀ Retour au lobby (tout le monde)</button>
     </div>
   </main>
 
@@ -66,56 +44,60 @@
   <script src="../../lib/firebase-database-compat.js"></script>
   <script src="../../lib/qrcode.js"></script>
   <script src="../../commun/reseau.js"></script>
+  <script src="../../jeux.js"></script>
+  <script src="../../commun/scores.js"></script>
   <script>
-    // ⚠ Mettre ici le nom du dossier du jeu (le même que dans jeux.js)
+    // ⚠ Nom du dossier de ce jeu (le même que dans jeux.js)
     const JEU = "_modele";
 
-    const $ = (s) => document.querySelector(s);
-    const montrer = (id) => ["#ecran-choix", "#ecran-prof", "#ecran-eleve"]
-      .forEach((s) => ($(s).hidden = s !== id));
+    /* Les joueurs arrivent ici depuis le lobby : ils sont déjà connectés.
+       - s.code, s.id, s.nom : le lobby et moi
+       - v.hote : l'id de l'hôte (c'est lui qui pilote la partie)
+       - ref    : games/<CODE> dans Firebase — on peut y ranger l'état du jeu,
+                  ex. ref.child("partie/question").set(...)
+       - fin de partie : Scores.enregistrer(JEU, score)          → mon score
+                         Scores.enregistrer(JEU, score, "Léa")   → le score d'un joueur
+                         (le classement et le score total se mettent à jour tout seuls) */
+    const $ = (x) => document.querySelector(x);
+    const s = Reseau.session.lire();
+    let parti = false; // on ne quitte la page qu'une fois
+    const menu = () => { if (parti) return; parti = true; location.href = Reseau.racine; };
 
-    // Un élève arrive avec ?code=XXXXX (QR code ou page d'accueil)
-    const codeURL = new URLSearchParams(location.search).get("code");
-
-    if (codeURL) {
-      // ---------- CÔTÉ ÉLÈVE ----------
-      montrer("#ecran-eleve");
-      $("#code-eleve").textContent = Reseau.nettoyerCode(codeURL);
-      $("#form-nom").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        try {
-          const p = await Reseau.rejoindre(codeURL, $("#nom").value.trim());
-          $("#form-nom").hidden = true;
-          $("#attente").hidden = false;
-          // p.ref  = la partie, p.moi = ma fiche joueur
-          // ex. écouter l'état de la partie :
-          // p.ref.child("etat").on("value", (s) => { ... });
-        } catch (err) {
-          $("#erreur").textContent = err.message === "Code inconnu"
-            ? "Cette partie n'existe pas (ou plus)." : "Connexion impossible. Essaie la 4G.";
-        }
-      });
+    if (!s) {
+      $("#message").textContent = "Pas de lobby : retour au menu…";
+      setTimeout(menu, 1500);
     } else {
-      // ---------- CÔTÉ PROF ----------
-      $("#btn-creer").addEventListener("click", async () => {
-        try {
-          const { code, ref } = await Reseau.creerPartie(JEU);
-          montrer("#ecran-prof");
-          $("#code-affiche").textContent = code;
-          $("#qr").innerHTML = Reseau.qr(Reseau.lienRejoindre(JEU, code));
-          // liste des joueurs en direct
-          ref.child("joueurs").on("value", (snap) => {
-            const noms = [];
-            snap.forEach((j) => { noms.push((j.val() || {}).nom); });
-            $("#nb-joueurs").textContent = noms.length;
-            $("#liste-joueurs").replaceChildren(...noms.map((n) => {
-              const li = document.createElement("li"); li.textContent = n; return li;
-            }));
-          });
-          // ex. lancer : ref.child("etat").set("en-cours");
-        } catch (err) {
-          alert("Connexion à Firebase impossible : " + err.message);
-        }
+      Reseau.reprendre(s).then(() => {
+        const ref = Reseau.lobby(s.code);
+        let lanceVu = false;
+        $("#code").textContent = s.code;
+
+        ref.on("value", (snap) => {
+          const v = snap.val();
+          if (!v) { Reseau.session.effacer(); menu(); return; }        // lobby fermé
+          if (v.lancement) lanceVu = true;
+          else if (lanceVu) { Reseau.garderPresence(s); menu(); return; } // l'hôte a ramené tout le monde au lobby
+
+          const hote = v.hote === s.id;
+          $("#role").textContent = hote ? "tu es l'hôte ★" : "invité";
+          $("#btn-retour").hidden = !hote;
+          const joueurs = Object.entries(v.joueurs || {}).sort((a, b) => (a[1].arrivee || 0) - (b[1].arrivee || 0));
+          $("#liste-joueurs").replaceChildren(...joueurs.map(([id, j]) => {
+            const li = document.createElement("li");
+            if (id === v.hote) li.className = "hote";
+            li.textContent = (id === v.hote ? "★ " : "") + j.nom + (id === s.id ? " (toi)" : "");
+            return li;
+          }));
+        });
+
+        // Classement de ce jeu, en direct
+        Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(s.nom)));
+
+        // L'hôte termine la partie : tout le monde revient dans le lobby
+        $("#btn-retour").addEventListener("click", () => ref.child("lancement").remove());
+      }).catch(() => {
+        $("#message").textContent = "Ce lobby n'existe plus : retour au menu…";
+        setTimeout(menu, 1500);
       });
     }
   </script>

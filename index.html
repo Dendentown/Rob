@@ -17,32 +17,90 @@
   </header>
 
   <main>
-    <section class="rejoindre" aria-label="Rejoindre une partie">
-      <form id="form-code">
-        <label for="code">Entre le code<br>de la partie</label>
-        <div class="ligne">
-          <input id="code" name="code" autocomplete="off" placeholder="?????" maxlength="8" />
-          <button type="submit">GO ▶</button>
+    <!-- ===== MENU : créer ou rejoindre un lobby ===== -->
+    <section id="ecran-menu" class="ecran">
+      <div class="panneau" style="--c: var(--jaune)">
+        <label class="titre-panneau" for="pseudo">Ton pseudo</label>
+        <input id="pseudo" class="champ" maxlength="16" autocomplete="off" placeholder="PLAYER 1" />
+        <div class="score-total">
+          <span class="etiquette-score">Score total</span>
+          <span class="valeur-score" id="score-total">—</span>
+          <span class="rang-score" id="rang-total"></span>
         </div>
-        <p id="msg-code" class="test-reseau" role="status"></p>
-      </form>
+        <button id="btn-classements" class="bouton petit" type="button">🏆 Classements</button>
+      </div>
+
+      <div class="deux-colonnes">
+        <div class="panneau" style="--c: var(--cyan)">
+          <h2 class="titre-panneau">Nouveau lobby</h2>
+          <p class="aide">Crée un lobby, invite tes amis et choisis le jeu.</p>
+          <button id="btn-creer" class="bouton">Créer ▶</button>
+        </div>
+
+        <form id="form-rejoindre" class="panneau" style="--c: var(--rose)">
+          <h2 class="titre-panneau"><label for="code">Rejoindre un lobby</label></h2>
+          <input id="code" class="champ code" maxlength="8" autocomplete="off" placeholder="?????" />
+          <button type="submit" class="bouton">Rejoindre ▶</button>
+        </form>
+      </div>
+      <p id="msg-menu" class="message" role="status"></p>
     </section>
 
-    <nav class="filtres" id="filtres" aria-label="Filtrer par type de jeu"></nav>
-    <section class="grille" id="grille" aria-live="polite"></section>
-    <div class="vide" id="vide" hidden><strong>AUCUN JEU<br>POUR L'INSTANT</strong><span class="clignote">— BIENTÔT —</span></div>
+    <!-- ===== CLASSEMENTS ===== -->
+    <section id="ecran-classements" class="ecran" hidden>
+      <div class="panneau" style="--c: var(--jaune)">
+        <h2 class="titre-panneau">🏆 Classements</h2>
+        <nav class="filtres" id="onglets" aria-label="Choisir un classement"></nav>
+        <p class="aide" id="explication"></p>
+        <div id="tableau-scores" class="zone-scores"></div>
+      </div>
+      <p class="centre"><button id="btn-retour-menu" class="lien">◀ Retour au menu</button></p>
+    </section>
+
+    <!-- ===== LOBBY ===== -->
+    <section id="ecran-lobby" class="ecran" hidden>
+      <div class="deux-colonnes">
+        <div class="panneau" style="--c: var(--cyan)">
+          <h2 class="titre-panneau">Lobby</h2>
+          <div class="gros-code" id="lobby-code"></div>
+          <div class="qr" id="lobby-qr"></div>
+          <p class="aide">Scanne le QR code ou entre le code dans le menu.</p>
+          <button id="btn-copier" class="bouton petit">Copier le lien</button>
+        </div>
+
+        <div class="panneau" style="--c: var(--vert)">
+          <h2 class="titre-panneau">Joueurs <span id="nb-joueurs">0</span></h2>
+          <ul class="joueurs" id="liste-joueurs"></ul>
+        </div>
+      </div>
+
+      <div class="panneau" style="--c: var(--rose)">
+        <h2 class="titre-panneau">Jeu</h2>
+        <!-- l'hôte choisit -->
+        <div id="choix-hote" hidden>
+          <div class="grille" id="grille"></div>
+          <div class="vide" id="vide" hidden><strong>AUCUN JEU<br>POUR L'INSTANT</strong><span class="clignote">— BIENTÔT —</span></div>
+          <button id="btn-lancer" class="bouton gros" disabled>Lancer la partie ▶</button>
+        </div>
+        <!-- les invités attendent -->
+        <div id="attente-invite" hidden>
+          <p class="choix-actuel" id="jeu-choisi"></p>
+          <p class="clignote">En attente de l'hôte…</p>
+        </div>
+      </div>
+
+      <p id="msg-lobby" class="message" role="status"></p>
+      <p class="centre"><button id="btn-quitter" class="lien">◀ Quitter le lobby</button></p>
+    </section>
   </main>
 
-  <footer class="pied">
-    <button id="btn-test" class="lien">Tester la connexion</button>
-    <p id="test-sortie" class="test-reseau" role="status"></p>
-    Fait en classe, pour la classe
-  </footer>
+  <footer class="pied">Fait en classe, pour la classe</footer>
 
   <script src="lib/firebase-app-compat.js"></script>
   <script src="lib/firebase-database-compat.js"></script>
   <script src="lib/qrcode.js"></script>
   <script src="commun/reseau.js"></script>
+  <script src="commun/scores.js"></script>
   <script src="jeux.js"></script>
   <script src="app.js"></script>
 </body>
