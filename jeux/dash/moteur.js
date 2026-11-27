@@ -108,12 +108,14 @@
   }
 
   // Chaque morceau commence par du sol au niveau courant g (point de reprise sûr)
+  // boîte du double saut : juste au-dessus de la bulle (un peu en avant, là où le double saut monte)
+  let DX_DOUBLE = 2, H_DOUBLE = 6.8;
   const MORCEAUX = [
     { nom: "piques", min: 0, poids: 4, f(m, x, g, a) {
       const n = 1 + ((a() * 3) | 0); const l = 4 + n;
       sol(m, x, x + l * U, g);
       for (let i = 0; i < n; i++) pique(m, x + (2 + i) * U, yDe(g));
-      if (a() < 0.3) boite(m, x + (2 + n / 2) * U, g + 3);
+      a(); // (plus de « ? » au-dessus de piques seuls)
       return { l, g };
     } },
     { nom: "blocs", min: 0, poids: 6, f(m, x, g, a) {
@@ -125,6 +127,7 @@
       const n = a() < 0.4 ? 5 : 3;
       for (let e = 0; e < n; e++) {
         if (e > 0) cx += espace();
+        const entreBlocs = !typeBloc && e > 0 && e < n - 1; // piques encadrés par deux blocs
         if (typeBloc) {
           const r = a(), larg = r < 0.25 ? 2 : 1, haut = r > 0.7 ? 2 : 1;
           if (haut === 2) double = true;
@@ -138,15 +141,15 @@
             m.bulles.push({ id: m.id++, x: x + (cx + np / 2) * U, y: yDe(g + 2.5) });
             // environ une bulle sur trois a une boîte très haut : seulement avec le DOUBLE saut (bulle puis rappui)
             // (0,64 car on en retire près de la moitié : pas de boîte à côté d'un bloc double)
-            if (a() < 0.64) hautes.push(x + (cx + np / 2 + 2.5) * U);
+            if (a() < 0.64) hautes.push(x + (cx + np / 2 + DX_DOUBLE) * U);
           }
-          else if (a() < 0.25) boite(m, x + (cx + np / 2) * U, g + 3);
+          // (pas de « ? » à la place d'une bulle : les boîtes de ce passage sont seulement au-dessus des bulles)
           cx += np;
         }
         typeBloc = !typeBloc;
       }
       // (pas de boîte du double saut à côté d'un bloc double : on l'attraperait d'un simple saut depuis dessus)
-      if (!double) hautes.forEach((bx) => boite(m, bx, g + 7.2));
+      if (!double) hautes.forEach((bx) => boite(m, bx, g + H_DOUBLE));
       const l = Math.ceil(cx + 2);
       sol(m, x, x + l * U, g);
       return { l, g };
@@ -441,19 +444,31 @@
           for (let i = 0; i < 3; i++) m.scies.push({ id: m.id++, x: cx + (3 + i * 4.5) * U, yc: yN(4), amp: 2.6 * U, P: 1.6 + a() * 0.8, ph: a() * 6.283, r: 14 });
           cx += 16 * U;
         } else if (t === "cubes") {
-          // petits cubes en lévitation, en haut ou en bas, bien espacés
-          for (let i = 0; i < 4; i++) {
-            const bas = a() < 0.5;
-            if (bas) fixe(cx + (2 + i * 4.5) * U, U, 0, 1.5 + a());
-            else fixe(cx + (2 + i * 4.5) * U, U, 6 + a() * 0.5, 8);
+          // obstacles variés : piliers (sol ou plafond) parfois terminés par un pique, et blocs en suspension
+          for (let i = 0; i < 5; i++) {
+            const ox = cx + (2 + i * 4) * U, r = a();
+            if (r < 0.35) { // pilier du sol
+              const h = 1 + a() * 1.2;
+              fixe(ox, U, 0, h);
+              if (a() < 0.5) pique(m, ox, yN(h));
+            } else if (r < 0.7) { // pilier du plafond
+              const b = 6.3 + a() * 0.7;
+              fixe(ox, U, b, 8);
+              if (a() < 0.5) pique(m, ox, yN(b), true);
+            } else { // bloc en suspension, au milieu du couloir
+              const n1 = 2.8 + a() * 1.6;
+              fixe(ox, U * (a() < 0.4 ? 2 : 1), n1, n1 + 1);
+            }
           }
-          cx += 20 * U;
+          cx += 22 * U;
         } else if (t === "serre" || t === "zigzag") {
           // couloir (4,5 blocs de haut) dont le centre monte et descend en pente douce
-          const pas = 3, demi = 2.25;
+          const pas = 3;
           const chemin = t === "zigzag" ? [3, 3.5, 4, 4.5, 5, 5, 4.5, 4, 3.5, 3] : [];
           if (t === "serre") { let c = 4; for (let i = 0; i < 7; i++) { c = Math.max(3, Math.min(5, c + (a() < 0.5 ? -0.5 : 0.5))); chemin.push(c); } }
           chemin.forEach((c, i) => {
+            // couloir de 4,5 blocs ; dans le zigzag il se resserre jusqu'à 2,6 blocs
+            const demi = t === "zigzag" ? 2.25 - (0.95 * i) / (chemin.length - 1) : 2.25;
             fixe(cx + (1 + i * pas) * U, pas * U, 0, c - demi);
             fixe(cx + (1 + i * pas) * U, pas * U, c + demi, 8);
           });
@@ -463,13 +478,17 @@
           const ph = a() * 6.283;
           [3, 11].forEach((i, q) => {
             const f = ph + q * 1.9, lx = cx + i * U + 12;
-            const a1 = 1.2 + a() * 1.3, b1 = 5 + a() * 1.2, o = 1.7; // bas des ouvertures A et B, hauteur 1,7 bloc
             const seg = (n1, n2, extra) => m.lasers.push(Object.assign({ id: m.id++, x: lx, w: 6, y1: yN(n2), y2: yN(n1), P: 1.6, ph: f }, extra));
+            // une GRANDE ouverture (2,8 blocs) et une PETITE (1,4 bloc), l'une en bas, l'autre en haut
+            const grandeEnBas = a() < 0.5;
+            const oa = grandeEnBas ? 2.8 : 1.4, ob = grandeEnBas ? 1.4 : 2.8;
+            const a1 = grandeEnBas ? 0.8 + a() * 0.8 : 1 + a() * 1.5;
+            const b1 = grandeEnBas ? 5.2 + a() * 1 : 4.6 + a() * 0.3;
             seg(0, a1, { toujours: true });
-            seg(a1, a1 + o, { ph: f });                // ouverture A
-            seg(a1 + o, b1, { toujours: true });
-            seg(b1, b1 + o, { ph: f + Math.PI });      // ouverture B (fermée quand A est ouverte)
-            seg(b1 + o, 8, { toujours: true });
+            seg(a1, a1 + oa, { ph: f });               // ouverture du bas
+            seg(a1 + oa, b1, { toujours: true });
+            seg(b1, b1 + ob, { ph: f + Math.PI });     // ouverture du haut (fermée quand celle du bas est ouverte)
+            seg(b1 + ob, 8, { toujours: true });
           });
           cx += 15 * U;
         }
@@ -911,7 +930,7 @@
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, tirer, etape, laser, solSous, MORCEAUX, LISTES,
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, tirer, etape, laser, solSous, MORCEAUX, LISTES, reglerDouble: (dx, h) => { DX_DOUBLE = dx; H_DOUBLE = h; },
     yTombant, yMobile, yScie, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
