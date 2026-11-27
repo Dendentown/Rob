@@ -18,7 +18,9 @@
    où on les a ramassés), avec le bouton sous le terrain (ou E / Maj / Entrée).
    Chaque tremplin envoie sur une boîte. Objets :
      T turbo (plus vite et casse les obstacles)
-     G grappin (s'accroche au plafond et se balance vers l'avant : élan)
+     G grappin : balancier accroché au plafond, de plus en plus vite jusqu'au
+       point le plus bas ; garder le bouton appuyé = continuer à se balancer,
+       le lâcher = partir avec la vitesse du moment, gardée 1 s
      L laser (rayon en ligne droite jusqu'au bord de l'écran : détruit
        les obstacles à hauteur du cube)
    En COURSE, des objets contre les autres :
@@ -74,20 +76,27 @@
   function presser() { if (etat === "jeu") { appui = true; demande = true; } } // demande : un tap très bref compte quand même
   addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
-    if (["e", "shift", "enter", "arrowright"].includes(k)) { e.preventDefault(); utiliserObjet(); return; }
+    if (["e", "shift", "enter", "arrowright"].includes(k)) { e.preventDefault(); if (!e.repeat) utiliserObjet(); return; }
     if (e.repeat) return;
     if (k === " " || k === "arrowup" || k === "z" || k === "w") {
       e.preventDefault();
       if ((etat === "menu" || (etat === "arrive" && mode === "solo")) && Coop.role !== "hote") nouvellePartie(); else presser();
     }
   });
-  addEventListener("keyup", (e) => { const k = e.key.toLowerCase(); if (k === " " || k === "arrowup" || k === "z" || k === "w") appui = false; });
+  addEventListener("keyup", (e) => {
+    const k = e.key.toLowerCase();
+    if (k === " " || k === "arrowup" || k === "z" || k === "w") appui = false;
+    if (["e", "shift", "enter", "arrowright"].includes(k)) lacherGrappin();
+  });
   // on saute en appuyant n'importe où sur l'écran (sauf sur les boutons) ; plus l'appui dure, plus le saut est haut
   addEventListener("pointerdown", (e) => {
     if (etat !== "jeu" || e.target.closest("button, .modal")) return;
     e.preventDefault(); presser();
   });
-  addEventListener("pointerup", () => { appui = false; });
+  addEventListener("pointerup", () => { appui = false; lacherGrappin(); });
+  addEventListener("pointercancel", () => { appui = false; lacherGrappin(); });
+  // le grappin reste accroché tant qu'on garde le bouton objet (ou la touche) appuyé
+  function lacherGrappin() { if (j && j.croc) j.croc.tenu = false; }
   addEventListener("pointercancel", () => { appui = false; });
   $("#btn-objet").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); utiliserObjet(); });
 
@@ -117,9 +126,9 @@
       // en course : un adversaire pas trop loin devant → on s'accroche à lui (il est tiré en arrière, on prend son élan)
       const cible = mode === "course" && Object.entries(autres).filter(([, d]) => d.d > j.x && d.d - j.x < 15 * U && d.e !== "arrive").sort((a, b) => a[1].d - b[1].d)[0];
       if (cible) {
-        liens.push({ de: X_CUBE + U / 2, dy: j.y + U / 2, vers: cible[1].d, vy: cible[1].y + U / 2, t: 0.4 });
+        liens.push({ de: X_CUBE + U / 2, dy: j.y + U / 2, vers: cible[1].d, vy: cible[1].y + U / 2, t: 0.5 });
         evenement("grappin", { cible: cible[0], d: j.x });
-        j.v = M.vitesseCroisiere(j) * 1.8; j.boost = Math.max(j.boost, 0.8);
+        M.tirer(j, 0.5); // accélération maximale à la fin du tirage, puis élan 1 s
       } else M.accrocher(j, monde); // sinon : au plafond, et on se balance vers l'avant
     }
     majBoutonObjet();

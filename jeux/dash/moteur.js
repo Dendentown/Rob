@@ -588,12 +588,12 @@
   const VAISSEAU_MONTE = 1900, VAISSEAU_DESCEND = 1500, VAISSEAU_VMAX = 380;
   function nouveauJoueur() {
     return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0,
-      anneaux: [], flaques: [], boites: [], t: 0, recul: 0, mode: "cube", grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
+      anneaux: [], flaques: [], boites: [], t: 0, recul: 0, elanT: 0, elanV: 0, tirage: null, mode: "cube", grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
   }
   // copie indépendante (pour les simulations)
   function copier(j) {
     return Object.assign({}, j, { anneaux: j.anneaux.slice(), flaques: j.flaques.slice(), boites: j.boites.slice(), bulles: j.bulles.slice(),
-      trig: Object.assign({}, j.trig), attente: Object.assign({}, j.attente), croc: j.croc ? Object.assign({}, j.croc) : null });
+      trig: Object.assign({}, j.trig), attente: Object.assign({}, j.attente), croc: j.croc ? Object.assign({}, j.croc) : null, tirage: j.tirage ? Object.assign({}, j.tirage) : null });
   }
 
   // point de reprise : le dernier repère derrière le joueur (les pièges déclenchés sont remis en place)
@@ -604,7 +604,7 @@
   }
   function placer(j, r) { // à l'arrêt sur un point de reprise (au plafond si on est dans une partie à l'envers)
     Object.assign(j, { x: r.x + 2, y: r.mode === "vaisseau" ? r.yv : r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, mode: r.mode || "cube",
-      vy: 0, v: 0, sol: r.mode !== "vaisseau", rot: 0, tenu: false, croc: null, recul: 0, grav: r.inv ? -1 : 1,
+      vy: 0, v: 0, sol: r.mode !== "vaisseau", rot: 0, tenu: false, croc: null, recul: 0, elanT: 0, tirage: null, grav: r.inv ? -1 : 1,
       charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
   }
 
@@ -645,16 +645,21 @@
     j.t += dt;
     const s = j.grav; // 1 = normal, -1 = la tête en bas
     const presse = appui && !j.prec; j.prec = appui;
-    ["boost", "lent", "stun", "inv"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
+    ["boost", "lent", "stun", "inv", "elanT"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
     if (j.croc) { balancer(j, m, dt, ev); if (j.croc) { if (j.x >= m.fin) ev.push("fini"); return ev; } }
     // déclencheurs : cubes qui tombent quand on arrive
     for (const o of m.tombants) {
       if (j.trig[o.id] == null && o.x > j.x && (o.x - j.x) / Math.max(j.v, 60) < CHUTE_DELAI) j.trig[o.id] = j.t;
     }
     // vitesse horizontale : remonte vers la vitesse de croisière
-    const cible = j.stun > 0 ? 0 : vitesseCroisiere(j);
+    const cible = j.stun > 0 ? 0 : Math.max(vitesseCroisiere(j), j.elanT > 0 ? j.elanV : 0);
     if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * (j.tapis > 0 ? 2 : 1) * dt);
     else j.v = Math.max(cible, j.v - ACCEL * 2 * dt);
+    if (j.tirage) { // tiré par le grappin vers un adversaire : accélération croissante
+      const q = j.tirage; q.t += dt; const f = Math.min(1, q.t / q.d);
+      j.v = q.v0 + (q.vmax - q.v0) * f * f;
+      if (f >= 1) { j.elanV = q.vmax; j.elanT = ELAN_DUREE; j.tirage = null; ev.push("lache"); }
+    }
     const vaisseau = j.mode === "vaisseau";
     if (vaisseau) { /* le vaisseau ne saute pas : appuyer = monter, relâcher = descendre */ }
     else if (appui && j.sol && j.stun <= 0) { j.vy = SAUT_V * s; j.sol = false; j.tenu = true; }
@@ -820,45 +825,66 @@
     return { x1, x2, y: j.y + U / 2, n };
   }
 
-  // Grappin : le cube s'accroche au plafond (ou en haut de l'écran) juste au-dessus de lui
-  // et se balance vers l'avant, puis est lâché lancé, plus vite.
-  const BALANCE_ANGLE = 0.9, BALANCE_DUREE = 0.5;
+  // Grappin : un vrai BALANCIER. Le câble s'accroche au plafond devant et au-dessus du cube ;
+  // le cube part en arrière du point d'accroche et accélère en descendant : vitesse MAXIMALE au point
+  // le plus bas. Tant qu'on garde le bouton appuyé, on continue de se balancer ; en le lâchant, le cube
+  // part avec sa vitesse du moment, qu'il GARDE pendant 1 s.
+  const BALANCE_DEPART = -0.75, BALANCE_LEVAGE = 0.12, BALANCE_MAX = 3, ELAN_DUREE = 1;
   function accrocher(j, m) {
     const s = j.grav, cx = j.x + U / 2, cy = j.y + U / 2;
-    let L = 10 * U, air = true;
-    if (s > 0) {
-      let haut = 0; // le plafond le plus bas au-dessus du cube
-      for (const r of m.rects) if (!r.detruit && r.x <= cx && r.x + r.w >= cx && r.y + r.h <= j.y + 1) haut = Math.max(haut, r.y + r.h);
-      L = Math.max(3 * U, Math.min(8 * U, cy - haut)); air = cy - haut > 8 * U;
-    } else {
-      let bas = H;
-      for (const r of m.rects) if (!r.detruit && r.x <= cx && r.x + r.w >= cx && r.y >= j.y + U - 1) bas = Math.min(bas, r.y);
-      L = Math.max(3 * U, Math.min(8 * U, bas - cy)); air = bas - cy > 8 * U;
+    const k = Math.sin(-BALANCE_DEPART);                // décalage horizontal relatif du point d'accroche
+    let L = 6 * U, air = true;
+    // plafond le plus proche au-dessus (ou au-dessous à l'envers) entre le cube et le point d'accroche
+    let lim = s > 0 ? 0 : H;
+    for (const r of m.rects) {
+      if (r.detruit || r.x > cx + k * 7 * U || r.x + r.w < cx) continue;
+      if (s > 0 && r.y + r.h <= j.y + 1) lim = Math.max(lim, r.y + r.h);
+      if (s < 0 && r.y >= j.y + U - 1) lim = Math.min(lim, r.y);
     }
-    const w = BALANCE_ANGLE / BALANCE_DUREE;
-    j.croc = { ax: cx, ay: cy - s * L, L, th: 0, w, vt: w * L, air, s };
-    j.sol = false; j.tenu = false;
+    const place = Math.abs(cy - lim);
+    L = Math.max(3 * U, Math.min(6 * U, place)); air = place > 6 * U;
+    // le point le plus bas du balancier est à la hauteur actuelle du cube
+    const ax = cx + L * k, ay = cy - s * L;
+    j.croc = { ax, ay, L, th: BALANCE_DEPART, w: Math.max(j.v, 150) / L, t: 0, tenu: true, air, s,
+      x0: j.x, y0: j.y };
+    j.sol = false; j.tenu = false; j.tirage = null;
+  }
+  function lacher(j, ev, bloque) {
+    const c = j.croc, s = j.grav;
+    const vx = bloque ? 0 : c.L * c.w * Math.cos(c.th);
+    j.vy = bloque ? 0 : -s * c.L * c.w * Math.sin(c.th);
+    j.v = Math.max(0, vx);
+    if (j.v > vitesseCroisiere(j)) { j.elanV = j.v; j.elanT = ELAN_DUREE; } // l'élan reste 1 s
+    j.croc = null; ev.push("lache");
   }
   function balancer(j, m, dt, ev) {
     const c = j.croc, s = j.grav;
+    c.t += dt;
+    const posA = (th) => ({ x: c.ax + c.L * Math.sin(th) - U / 2, y: c.ay + s * c.L * Math.cos(th) - U / 2 });
+    if (c.t < BALANCE_LEVAGE) { // le câble se tend et soulève le cube jusqu'au départ du balancier
+      const p = posA(c.th), f = c.t / BALANCE_LEVAGE;
+      j.x = c.x0 + (p.x - c.x0) * f; j.y = c.y0 + (p.y - c.y0) * f;
+      return;
+    }
+    if (!c.tenu || c.t > BALANCE_MAX) { lacher(j, ev, false); return; }
+    c.w += -(G / c.L) * Math.sin(c.th) * dt; // pendule : accélère en descendant, ralentit en remontant
     c.th += c.w * dt;
-    const nx = c.ax + c.L * Math.sin(c.th) - U / 2, ny = c.ay + s * c.L * Math.cos(c.th) - U / 2;
-    // l'élan du balancier casse les obstacles ; le sol et les plafonds arrêtent le balancement
+    const p = posA(c.th);
+    // l'élan casse les obstacles ; sol, plafonds et plateformes volantes arrêtent le balancement
     let heurte = false;
     for (const r of rectsDuMoment(m, j)) {
-      if (r.detruit || (r.src && r.src.detruit) || !(nx + U - 3 > r.x && nx + 3 < r.x + r.w && ny + U - 3 > r.y && ny + 3 < r.y + r.h)) continue;
+      if (r.detruit || (r.src && r.src.detruit) || !(p.x + U - 3 > r.x && p.x + 3 < r.x + r.w && p.y + U - 3 > r.y && p.y + 3 < r.y + r.h)) continue;
       if (r.fixe || ["sol", "plafond", "mobile", "fragile"].includes(r.type)) heurte = true;
       else { if (r.src) r.src.detruit = true; else r.detruit = true; if (!ev.includes("casse")) ev.push("casse"); }
     }
-    if (!heurte) { j.x = nx; j.y = ny; }
-    j.rot += dt * 9 * s;
-    if (heurte || c.th >= BALANCE_ANGLE) {
-      // lâché : lancé vers l'avant et vers le haut, avec un élan qui dure un peu
-      j.v = Math.max(1.3 * vitesseCroisiere(j), c.vt * Math.cos(c.th));
-      j.vy = heurte ? 0 : -s * c.vt * Math.sin(c.th) * 0.75;
-      j.boost = Math.max(j.boost, 0.9);
-      j.croc = null; ev.push("lache");
-    }
+    if (heurte) { lacher(j, ev, true); return; }
+    j.x = p.x; j.y = p.y;
+    j.rot = c.th * s;
+  }
+  // Grappin sur un adversaire (course) : on est tiré de plus en plus vite, vitesse MAXIMALE à la fin
+  function tirer(j, duree) {
+    j.croc = null;
+    j.tirage = { t: 0, d: duree || 0.5, v0: j.v, vmax: 1.9 * vitesseCroisiere(j) };
   }
 
   // sol sous une abscisse (pour poser une flaque)
@@ -867,7 +893,7 @@
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, etape, laser, solSous, MORCEAUX, LISTES,
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, tirer, etape, laser, solSous, MORCEAUX, LISTES,
     yTombant, yMobile, yScie, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
