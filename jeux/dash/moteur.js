@@ -136,8 +136,9 @@
           // une fois sur deux, une bulle de saut au-dessus des piques
           if (a() < 0.5) {
             m.bulles.push({ id: m.id++, x: x + (cx + np / 2) * U, y: yDe(g + 2.5) });
-            // une fois sur trois, une boîte très haut : seulement avec le DOUBLE saut (bulle puis rappui)
-            if (a() < 1 / 3) hautes.push(x + (cx + np / 2 + 2.5) * U);
+            // environ une bulle sur trois a une boîte très haut : seulement avec le DOUBLE saut (bulle puis rappui)
+            // (0,64 car on en retire près de la moitié : pas de boîte à côté d'un bloc double)
+            if (a() < 0.64) hautes.push(x + (cx + np / 2 + 2.5) * U);
           }
           else if (a() < 0.25) boite(m, x + (cx + np / 2) * U, g + 3);
           cx += np;
