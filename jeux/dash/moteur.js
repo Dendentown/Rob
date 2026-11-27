@@ -196,21 +196,25 @@
       if (a() < 0.45) {
         // plateforme haute séparée de l'escalier par un peu de vide : on ne l'atteint qu'en sautant
         // du haut des marches (une boîte flotte dans le vide, sur la trajectoire du saut).
-        // Parfois TROIS étages : chaque plateforme n'est accessible que depuis la précédente.
+        // Parfois DEUX plateformes en escalier (pique ou scie sur la première, un objet dans le vide à la fin).
         // On peut aussi tout ignorer et passer en bas.
-        const s0 = sommetSautMax(haut);
-        m.boites.push({ id: m.id++, x: s0.x + U / 2 - 0.5 * U, y: s0.y + U / 2 + 0.8 * U }); // facile : un peu sous le sommet
         if (g <= 1 && a() < 0.5) {
-          const l = 38;
+          // DEUX plateformes en escalier : un pique ou une scie sur la première,
+          // et un seul objet, dans le vide après la seconde : il faut sauter du bout pour l'attraper
+          const l = 36;
           sol(m, x, x + l * U, g);
           dalle(m, x + 12 * U, x + 19 * U, g + 4.6);
-          dalle(m, x + 21.5 * U, x + 27 * U, g + 7);
-          dalle(m, x + 29.5 * U, x + 35 * U, g + 9.4);
+          const p2 = { id: m.id++, x: x + 21.5 * U, y: yDe(g + 7), w: 5.5 * U, h: 0.5 * U, type: "bloc" };
+          m.rects.push(p2);
+          if (a() < 0.5) pique(m, x + 15.5 * U, yDe(g + 4.6));
+          else m.pendules.push({ id: m.id++, x: x + 15.5 * U, py: yDe(g + 4.6) - 6.9 * U, L: 6 * U, amp: 0.7, P: 2.4, ph: a() * 6.283, r: 13 });
           pique(m, x + 13 * U, yDe(g)); pique(m, x + 22 * U, yDe(g)); pique(m, x + 30 * U, yDe(g));
-          boite(m, x + 24 * U, g + 8.2);
-          boite(m, x + 33 * U, g + 10.6);
+          const s2 = sommetSautMax(p2);
+          m.boites.push({ id: m.id++, x: s2.x + U / 2 - 0.5 * U, y: s2.y + U / 2 + 0.8 * U });
           return { l, g };
         }
+        const s0 = sommetSautMax(haut);
+        m.boites.push({ id: m.id++, x: s0.x + U / 2 - 0.5 * U, y: s0.y + U / 2 + 0.8 * U }); // facile : un peu sous le sommet
         const l = 26;
         sol(m, x, x + l * U, g);
         dalle(m, x + 12 * U, x + 22 * U, g + 4.6);
