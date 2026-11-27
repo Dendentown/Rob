@@ -254,16 +254,16 @@
       return { l: (cx - x) / U + 3, g };
     } },
     { nom: "trois-niveaux", min: 300, poids: 3, possible: (g) => g <= 1, f(m, x, g, a) {
-      // trois étages : en bas (piques), au milieu, en haut (boîtes)
-      const l = 24;
+      // trois étages : en bas (piques), au milieu, en haut (boîtes) — plateformes bien espacées, peu de piques en haut
+      const l = 30;
       sol(m, x, x + l * U, g);
       const dalle = (x1, x2, h) => m.rects.push({ id: m.id++, x: x1, y: yDe(h), w: x2 - x1, h: 0.5 * U, type: "bloc" });
-      dalle(x + 3 * U, x + 9 * U, g + 2.5); dalle(x + 13 * U, x + 19 * U, g + 2.5);
-      dalle(x + 8 * U, x + 14 * U, g + 5); dalle(x + 17 * U, x + 22 * U, g + 5);
-      pique(m, x + 11 * U, yDe(g)); pique(m, x + 21 * U, yDe(g));
-      pique(m, x + 6 * U, yDe(g + 2.5)); pique(m, x + 16 * U, yDe(g + 2.5));
-      boite(m, x + 11 * U, g + 6.3);
-      if (a() < 0.5) boite(m, x + 19.5 * U, g + 6.3);
+      dalle(x + 3 * U, x + 9 * U, g + 2.5); dalle(x + 16 * U, x + 22 * U, g + 2.5);
+      dalle(x + 10 * U, x + 15 * U, g + 5); dalle(x + 23 * U, x + 28 * U, g + 5);
+      pique(m, x + 12 * U, yDe(g)); pique(m, x + 25 * U, yDe(g));
+      if (a() < 0.5) pique(m, x + 19 * U, yDe(g + 2.5));
+      boite(m, x + 12.5 * U, g + 6.3);
+      if (a() < 0.5) boite(m, x + 25.5 * U, g + 6.3);
       return { l, g };
     } },
     { nom: "souterrain", min: 400, poids: 2, possible: (g) => g >= 1, f(m, x, g, a) {
@@ -390,11 +390,11 @@
       return { l: 24, g };
     } },
     { nom: "deux-voies", min: 200, poids: 2, possible: (g) => g <= 2, f(m, x, g, a) {
-      // en haut : court mais plein de piques ; en bas : sûr mais sur un tapis qui freine
+      // en haut : rapide avec quelques piques espacés ; en bas : sûr mais sur un tapis qui freine
       const l = 20;
       sol(m, x, x + l * U, g);
       m.rects.push({ id: m.id++, x: x + 3 * U, y: yDe(g + 3.5), w: 14 * U, h: 0.5 * U, type: "bloc" });
-      [6, 10, 11, 14].forEach((i) => pique(m, x + i * U, yDe(g + 3.5)));
+      [7, 13].forEach((i) => pique(m, x + i * U, yDe(g + 3.5)));
       m.tapis.push({ id: m.id++, x: x + 3 * U, w: 14 * U, y: yDe(g), dir: -1 });
       if (a() < 0.6) boite(m, x + 12.5 * U, g + 5.5);
       return { l, g };

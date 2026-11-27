@@ -26,7 +26,8 @@
        à LUI (il est ramené derrière, on prend son élan)
      et le laser immobilise aussi les joueurs devant dans l'écran (1,2 s).
 
-   SOLO : contre-la-montre sur 600 blocs. Score = 100 000 / temps (s).
+   SOLO : contre-la-montre sur 1000 blocs. Score = 166 667 / temps (s)
+   (même barème qu'avant à 600 blocs : 100 000 / temps).
    COURSE (lobby) : l'hôte lance, même parcours pour tous (même graine),
    les autres en fantômes, premier arrivé gagne.
    ============================================================ */
@@ -35,7 +36,7 @@
   const M = window.DashMoteur;
   const { U, H, X_CUBE } = M;
   const W = 800;
-  const LONGUEUR_COURSE = 600; // blocs
+  const LONGUEUR_COURSE = 1000; // blocs
   const COULEURS = ["#19f0ff", "#ff2bd6", "#3dff7a", "#ffe14d", "#ff8a1f", "#b388ff", "#ff3b3b", "#ffffff"];
   const OBJETS = {
     turbo: { lettre: "T", nom: "TURBO", c: "#ff8a1f" }, bouclier: { lettre: "B", nom: "BOUCLIER", c: "#3dff7a" }, laser: { lettre: "L", nom: "LASER", c: "#ff2bd6" },
@@ -65,7 +66,7 @@
     majBoutonObjet();
     Salle.publier(0, "jeu", true);
   }
-  const pointsSolo = (t) => Math.round(100000 / Math.max(1, t));
+  const pointsSolo = (t) => Math.round((100000 * LONGUEUR_COURSE / 600) / Math.max(1, t)); // 100 000 / temps ramené à 600 blocs
 
   // ---------- Commandes ----------
   function presser() { if (etat === "jeu") { appui = true; demande = true; } } // demande : un tap très bref compte quand même
