@@ -130,4 +130,45 @@ a.carte:hover { transform: translateY(-4px); box-shadow: 0 10px 0 rgba(31, 42, 6
 
 .vide { text-align: center; color: var(--doux); }
 
+/* --- Rejoindre une partie --- */
+.rejoindre { display: flex; justify-content: center; margin: 0 0 2rem; }
+.rejoindre form {
+  background: var(--carte);
+  border: 2px solid var(--encre);
+  border-radius: 18px;
+  box-shadow: var(--ombre);
+  padding: 1rem 1.2rem;
+  text-align: center;
+  width: min(420px, 100%);
+}
+.rejoindre label { font-weight: 800; display: block; margin-bottom: 0.6rem; }
+.rejoindre .ligne { display: flex; gap: 0.5rem; }
+.rejoindre input {
+  flex: 1;
+  min-width: 0;
+  font: 700 1.4rem "Fredoka", sans-serif;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+  border: 2px solid var(--encre);
+  border-radius: 12px;
+  padding: 0.4rem;
+}
+.rejoindre button, .bouton {
+  font: 700 1rem "Nunito", sans-serif;
+  background: var(--encre);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+}
+.test-reseau { min-height: 1.2em; margin: 0.5rem 0 0; font-size: 0.95rem; color: var(--doux); }
+.test-reseau.ok { color: #138a5b; }
+.test-reseau.ko { color: #c0392b; }
+.lien {
+  background: none; border: 0; padding: 0;
+  font: inherit; color: var(--encre); text-decoration: underline; cursor: pointer;
+}
+
 .pied { text-align: center; color: var(--doux); padding: 2.5rem 1rem 1.5rem; font-size: 0.9rem; }

@@ -1,57 +1,61 @@
 # 🎮 Rob — plateforme de mini-jeux
 
-Une page d'accueil où les élèves choisissent un mini-jeu. Site 100 % statique (HTML/CSS/JS), hébergé sur **Firebase Hosting** : les élèves jouent depuis n'importe quel appareil avec un simple lien, sans passer par l'ordinateur du prof.
+Une page d'accueil où les élèves choisissent un mini-jeu ou rejoignent la partie lancée par le prof.
+
+- **Hébergement : GitHub Pages** → https://dendentown.github.io/rob/
+- **Connexion : Firebase Realtime Database**, utilisée seulement comme relais (même base que La Ruée vers l'Or). Le tableau du prof et les téléphones s'échangent des messages par les serveurs de Google : personne ne se connecte à l'ordinateur du prof, et ça passe les pare-feux d'établissement.
+
+## Mettre en ligne (une seule fois)
+
+Sur GitHub : dépôt **rob** → **Settings** → **Pages** → *Source : Deploy from a branch* → branche **main**, dossier **/ (root)** → **Save**.
+Une ou deux minutes plus tard, le site est à l'adresse https://dendentown.github.io/rob/. Ensuite, chaque modification poussée sur `main` est mise en ligne automatiquement.
 
 ## Organisation
 
 ```
-public/
-├── index.html        page d'accueil (ne pas toucher en général)
-├── style.css         apparence commune
-├── app.js            affiche les cartes de jeux
-├── jeux.js           ⭐ LISTE DES JEUX — c'est ici qu'on ajoute un jeu
-├── 404.html          page « introuvable »
-└── jeux/
-    └── _modele/      modèle à copier pour créer un nouveau jeu
-firebase.json         réglages Firebase Hosting
-.firebaserc           identifiant du projet Firebase
+index.html            page d'accueil (liste des jeux + « Rejoindre une partie »)
+style.css             apparence commune
+app.js                affiche les cartes, gère le code de partie
+jeux.js               ⭐ LISTE DES JEUX — c'est ici qu'on ajoute un jeu
+commun/reseau.js      ⭐ connexion Firebase partagée par tous les jeux
+lib/                  bibliothèques Firebase + QR code (copiées en local)
+jeux/_modele/         modèle de jeu : salle d'attente prof / élèves déjà prête
+404.html              page « introuvable »
 ```
+
+## Comment se passe une partie
+
+1. Le prof ouvre un jeu au tableau → **Créer une partie** → un code (ex. `GV9ZV`) et un QR code s'affichent.
+2. Les élèves scannent le QR code, ou vont sur la page d'accueil et tapent le code.
+3. Ils entrent leur prénom ; le tableau affiche la liste des joueurs en direct.
+
+Les parties sont rangées dans `games/<CODE>` de la base et effacées automatiquement au bout de 24 h.
 
 ## Ajouter un jeu
 
-1. Copier `public/jeux/_modele/` en `public/jeux/mon-jeu/`.
-2. Dans `public/jeux.js`, ajouter (ou modifier) une entrée :
+1. Copier `jeux/_modele/` en `jeux/mon-jeu/`.
+2. Dans `jeux/mon-jeu/index.html`, remplacer `const JEU = "_modele";` par `const JEU = "mon-jeu";`.
+3. Dans `jeux.js`, ajouter une entrée :
    ```js
    { titre: "Mon jeu", description: "…", categorie: "calcul",
      niveau: "5e", dossier: "mon-jeu", statut: "disponible" }
    ```
-3. Remettre en ligne (`firebase deploy`, voir plus bas).
 
-Les catégories se modifient dans `CATEGORIES` (même fichier).
+### Outils réseau disponibles dans chaque jeu (`Reseau.…`)
 
-## Tester sur son ordinateur
+| Fonction | Rôle |
+|---|---|
+| `creerPartie(jeu)` | prof : crée la partie, renvoie `{ code, ref }` |
+| `rejoindre(code, nom)` | élève : rejoint, renvoie `{ ref, moi, id }` |
+| `lienRejoindre(jeu, code)` | adresse à mettre dans le QR code |
+| `qr(texte)` | QR code en SVG |
+| `enc(objet)` / `dec(valeur)` | emballer / déballer un message JSON |
+| `TS()` | heure du serveur |
+| `testerConnexion(element)` | vérifie que le réseau laisse passer |
 
-Ouvrir `public/index.html` dans le navigateur suffit. Ou, une fois Firebase installé : `firebase serve` puis http://localhost:5000.
+`ref` est une référence Firebase classique : `ref.child("etat").set(...)`, `ref.child("joueurs").on("value", ...)`, etc.
 
-## Mettre en ligne avec Firebase (une seule fois)
+## Attention
 
-1. **Créer le projet** : aller sur https://console.firebase.google.com → *Ajouter un projet* → donner un nom (ex. `rob-jeux`). Google Analytics : pas nécessaire. Le forfait gratuit (Spark) suffit.
-2. **Installer les outils** (sur ton ordinateur) :
-   - installer Node.js : https://nodejs.org (version LTS)
-   - dans un terminal : `npm install -g firebase-tools`
-3. **Se connecter** : `firebase login`
-4. **Récupérer le dépôt** : `git clone https://github.com/Dendentown/rob` puis `cd rob`
-5. **Lier le projet** : `firebase use --add` → choisir le projet créé à l'étape 1 (ça remplit `.firebaserc`).
-6. **Publier** : `firebase deploy --only hosting`
-
-Le site est alors en ligne à l'adresse `https://<id-du-projet>.web.app` — c'est ce lien qu'on donne aux élèves.
-
-## Mise en ligne automatique (optionnel)
-
-Pour que chaque modification poussée sur GitHub soit publiée toute seule :
-
-```
-firebase init hosting:github
-```
-
-Répondre `Dendentown/rob`, accepter le déploiement automatique sur la branche `main`. Firebase crée lui-même la clé secrète dans GitHub et le fichier `.github/workflows/`. Ensuite, plus besoin de taper `firebase deploy`.
+- Ouvert en double-cliquant sur `index.html`, le site s'affiche mais le jeu en réseau n'est garanti qu'en ligne (GitHub Pages).
+- Faire un essai avec **Tester la connexion** (bas de la page d'accueil) sur le wifi du collège avant le cours ; si ça bloque, passer les téléphones en 4G.

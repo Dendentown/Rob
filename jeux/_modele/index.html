@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nouveau jeu — Rob</title>
+  <link rel="stylesheet" href="../../style.css" />
+  <style>
+    .zone-jeu {
+      background: #fff;
+      border: 2px solid var(--encre);
+      border-radius: 18px;
+      box-shadow: var(--ombre);
+      padding: 2rem;
+      min-height: 50vh;
+      text-align: center;
+    }
+    .retour { display: inline-block; margin: 1.5rem 0 1rem; font-weight: 700; color: var(--encre); text-decoration: none; }
+    .gros-code { font: 700 3.5rem "Fredoka", sans-serif; letter-spacing: 0.2em; margin: 0.5rem 0; }
+    .qr svg { width: 200px; height: 200px; }
+    .joueurs { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+    .joueurs li { background: var(--fond); border: 2px solid var(--encre); border-radius: 999px; padding: 0.3rem 0.9rem; font-weight: 700; }
+    input.nom { font: 700 1.2rem "Nunito", sans-serif; border: 2px solid var(--encre); border-radius: 12px; padding: 0.4rem 0.8rem; text-align: center; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="retour" href="../../">← Retour aux jeux</a>
+
+    <div class="zone-jeu">
+      <!-- ÉCRAN D'ACCUEIL DU JEU -->
+      <section id="ecran-choix">
+        <h2>Nouveau jeu</h2>
+        <p>Modèle : copie ce dossier pour commencer un nouveau mini-jeu.</p>
+        <button class="bouton" id="btn-creer">Créer une partie (prof)</button>
+      </section>
+
+      <!-- ÉCRAN DU PROF (au tableau) -->
+      <section id="ecran-prof" hidden>
+        <p>Code de la partie :</p>
+        <div class="gros-code" id="code-affiche"></div>
+        <div class="qr" id="qr"></div>
+        <p><strong id="nb-joueurs">0</strong> joueur(s) connecté(s)</p>
+        <ul class="joueurs" id="liste-joueurs"></ul>
+        <!-- Ici : bouton « Lancer la partie », puis le jeu côté tableau -->
+      </section>
+
+      <!-- ÉCRAN DE L'ÉLÈVE (téléphone) -->
+      <section id="ecran-eleve" hidden>
+        <form id="form-nom">
+          <p>Partie <strong id="code-eleve"></strong> — ton prénom :</p>
+          <input class="nom" id="nom" maxlength="20" required autocomplete="off" />
+          <button class="bouton" type="submit">C'est parti</button>
+        </form>
+        <p id="attente" hidden>Tu es connecté·e ! Attends que le prof lance la partie…</p>
+        <p id="erreur" class="test-reseau ko"></p>
+        <!-- Ici : le jeu côté téléphone -->
+      </section>
+    </div>
+  </main>
+
+  <script src="../../lib/firebase-app-compat.js"></script>
+  <script src="../../lib/firebase-database-compat.js"></script>
+  <script src="../../lib/qrcode.js"></script>
+  <script src="../../commun/reseau.js"></script>
+  <script>
+    // ⚠ Mettre ici le nom du dossier du jeu (le même que dans jeux.js)
+    const JEU = "_modele";
+
+    const $ = (s) => document.querySelector(s);
+    const montrer = (id) => ["#ecran-choix", "#ecran-prof", "#ecran-eleve"]
+      .forEach((s) => ($(s).hidden = s !== id));
+
+    // Un élève arrive avec ?code=XXXXX (QR code ou page d'accueil)
+    const codeURL = new URLSearchParams(location.search).get("code");
+
+    if (codeURL) {
+      // ---------- CÔTÉ ÉLÈVE ----------
+      montrer("#ecran-eleve");
+      $("#code-eleve").textContent = Reseau.nettoyerCode(codeURL);
+      $("#form-nom").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          const p = await Reseau.rejoindre(codeURL, $("#nom").value.trim());
+          $("#form-nom").hidden = true;
+          $("#attente").hidden = false;
+          // p.ref  = la partie, p.moi = ma fiche joueur
+          // ex. écouter l'état de la partie :
+          // p.ref.child("etat").on("value", (s) => { ... });
+        } catch (err) {
+          $("#erreur").textContent = err.message === "Code inconnu"
+            ? "Cette partie n'existe pas (ou plus)." : "Connexion impossible. Essaie la 4G.";
+        }
+      });
+    } else {
+      // ---------- CÔTÉ PROF ----------
+      $("#btn-creer").addEventListener("click", async () => {
+        try {
+          const { code, ref } = await Reseau.creerPartie(JEU);
+          montrer("#ecran-prof");
+          $("#code-affiche").textContent = code;
+          $("#qr").innerHTML = Reseau.qr(Reseau.lienRejoindre(JEU, code));
+          // liste des joueurs en direct
+          ref.child("joueurs").on("value", (snap) => {
+            const noms = [];
+            snap.forEach((j) => { noms.push((j.val() || {}).nom); });
+            $("#nb-joueurs").textContent = noms.length;
+            $("#liste-joueurs").replaceChildren(...noms.map((n) => {
+              const li = document.createElement("li"); li.textContent = n; return li;
+            }));
+          });
+          // ex. lancer : ref.child("etat").set("en-cours");
+        } catch (err) {
+          alert("Connexion à Firebase impossible : " + err.message);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

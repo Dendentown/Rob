@@ -17,13 +17,32 @@
   </header>
 
   <main>
+    <section class="rejoindre" aria-label="Rejoindre une partie">
+      <form id="form-code">
+        <label for="code">Ton prof a lancé une partie ?</label>
+        <div class="ligne">
+          <input id="code" name="code" autocomplete="off" placeholder="CODE" maxlength="8" />
+          <button type="submit">Rejoindre</button>
+        </div>
+        <p id="msg-code" class="test-reseau" role="status"></p>
+      </form>
+    </section>
+
     <nav class="filtres" id="filtres" aria-label="Filtrer par type de jeu"></nav>
     <section class="grille" id="grille" aria-live="polite"></section>
     <p class="vide" id="vide" hidden>Aucun jeu dans cette catégorie pour l'instant.</p>
   </main>
 
-  <footer class="pied">Fait en classe, pour la classe</footer>
+  <footer class="pied">
+    <button id="btn-test" class="lien">Tester la connexion</button>
+    <p id="test-sortie" class="test-reseau" role="status"></p>
+    Fait en classe, pour la classe
+  </footer>
 
+  <script src="lib/firebase-app-compat.js"></script>
+  <script src="lib/firebase-database-compat.js"></script>
+  <script src="lib/qrcode.js"></script>
+  <script src="commun/reseau.js"></script>
   <script src="jeux.js"></script>
   <script src="app.js"></script>
 </body>

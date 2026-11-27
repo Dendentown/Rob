@@ -59,4 +59,28 @@
   }
 
   afficher();
+
+  // --- Rejoindre une partie avec un code : on demande à Firebase quel jeu c'est ---
+  const form = document.getElementById("form-code");
+  const champ = document.getElementById("code");
+  const msg = document.getElementById("msg-code");
+  champ.addEventListener("input", () => { champ.value = Reseau.nettoyerCode(champ.value); });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const code = Reseau.nettoyerCode(champ.value);
+    if (!code) return;
+    msg.className = "test-reseau"; msg.textContent = "Recherche de la partie…";
+    try {
+      const jeu = await Reseau.jeuDuCode(code);
+      if (!jeu) { msg.className = "test-reseau ko"; msg.textContent = "Aucune partie avec ce code."; return; }
+      location.href = Reseau.lienRejoindre(jeu, code);
+    } catch (err) {
+      msg.className = "test-reseau ko";
+      msg.textContent = "Connexion impossible. Essaie la 4G ou un autre wifi.";
+    }
+  });
+
+  document.getElementById("btn-test").addEventListener("click", () =>
+    Reseau.testerConnexion(document.getElementById("test-sortie"))
+  );
 })();
