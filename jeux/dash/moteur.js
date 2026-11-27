@@ -200,7 +200,7 @@
       sol(m, x, x + l * U, g);
       for (let i = 9; i < 16; i++) pique(m, x + i * U, yDe(g));
       const s0 = sommetSautMax(haut);
-      m.boites.push({ id: m.id++, x: s0.x + U / 2 + 36, y: s0.y + U / 2 - 22 }); // réglé par simulation : saut parfait seulement
+      m.boites.push({ id: m.id++, x: s0.x + U / 2 + 20, y: s0.y + U / 2 - 18 }); // réglé par simulation : grand saut bien placé (pas forcément parfait)
       return { l, g };
     } },
     { nom: "plafond-piques", min: 150, poids: 2, f(m, x, g, a) {
