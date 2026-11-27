@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rob — Mini-jeux</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="entete">
+    <div class="logo" aria-hidden="true">🎮</div>
+    <h1 id="nom-plateforme">Rob</h1>
+    <p id="sous-titre" class="sous-titre"></p>
+  </header>
+
+  <main>
+    <nav class="filtres" id="filtres" aria-label="Filtrer par type de jeu"></nav>
+    <section class="grille" id="grille" aria-live="polite"></section>
+    <p class="vide" id="vide" hidden>Aucun jeu dans cette catégorie pour l'instant.</p>
+  </main>
+
+  <footer class="pied">Fait en classe, pour la classe</footer>
+
+  <script src="jeux.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
