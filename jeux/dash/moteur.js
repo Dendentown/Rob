@@ -21,7 +21,9 @@
 (function (racine) {
   const U = 30, SOL = 360, H = 450, X_CUBE = 180;
   const G = 2600, SAUT = -820, SAUT_TREMPLIN = -1120;
-  const SAUT_COUPE = -420; // relâcher tôt coupe le saut : appui bref = petit saut, appui long = saut maximal
+  // Saut variable, progressif : tant qu'on garde appuyé en montant, la gravité est réduite de moitié.
+  // Appui bref ≈ 2,1 blocs, appui long (≈ 0,45 s) = 4,2 blocs ; la hauteur grandit doucement avec la durée.
+  const SAUT_V = -580, G_TENU = 0.5, SAUT_COUPE = -580;
   const vitesseBase = (d) => 330 * (1 + 0.15 * Math.log(1 + d / 3000));
 
   function mulberry32(a) {
@@ -307,9 +309,9 @@
     } },
     { nom: "lasers", min: 200, poids: 2, f(m, x, g, a) {
       // rayons qui s'allument en alternance : celui du bas (sauter) ou celui du haut (rester bas)
-      const l = 14, P = 1.4, ph = a() * 6.283;
+      const l = 22, P = 1.4, ph = a() * 6.283;
       sol(m, x, x + l * U, g);
-      [5, 10].forEach((i, k) => {
+      [5, 16].forEach((i, k) => { // deux portes bien éloignées : le temps de se replacer entre les deux
         const f = ph + k * 1.7;
         m.lasers.push({ id: m.id++, x: x + i * U + 12, w: 6, y1: yDe(g) - 1.6 * U, y2: yDe(g), P, ph: f });
         m.lasers.push({ id: m.id++, x: x + i * U + 12, w: 6, y1: yDe(g) - 5 * U, y2: yDe(g) - 2.2 * U, P, ph: f + Math.PI });
@@ -518,14 +520,13 @@
     const cible = j.stun > 0 ? 0 : vitesseCroisiere(j);
     if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * (j.tapis > 0 ? 2 : 1) * dt);
     else j.v = Math.max(cible, j.v - ACCEL * 2 * dt);
-    if (appui && j.sol && j.stun <= 0) { j.vy = SAUT * s; j.sol = false; j.tenu = true; }
-    else if (presse && !j.sol && j.charge && j.stun <= 0) { j.vy = SAUT * s; j.charge = false; j.tenu = true; ev.push("bulle"); }
-    // saut variable : relâcher tôt coupe la montée
-    if (j.tenu && !appui) { if (j.vy * s < SAUT_COUPE) j.vy = SAUT_COUPE * s; j.tenu = false; }
+    if (appui && j.sol && j.stun <= 0) { j.vy = SAUT_V * s; j.sol = false; j.tenu = true; }
+    else if (presse && !j.sol && j.charge && j.stun <= 0) { j.vy = SAUT_V * s; j.charge = false; j.tenu = true; ev.push("bulle"); }
+    if (j.tenu && !appui) j.tenu = false;
     if (j.vy * s >= 0) j.tenu = false;
     const xa = j.x, ya = j.y;
     j.x += j.v * dt;
-    j.vy += G * s * dt; j.y += j.vy * dt;
+    j.vy += G * (j.tenu ? G_TENU : 1) * s * dt; j.y += j.vy * dt;
     j.sol = false;
 
     let contreMur = false;
@@ -554,7 +555,7 @@
           if (j.attente[r.src.id] > PORTE_ATTENTE) { j.trig[r.src.id] = j.t; ev.push("porte"); }
         }
         if (r.type === "rebond" && appui && !j.sol && j.rebonds < 4 && j.vy * s > -250) {
-          j.vy = SAUT * s; j.tenu = true; j.rebonds++; ev.push("rebond");
+          j.vy = SAUT_V * s; j.tenu = true; j.rebonds++; ev.push("rebond");
         }
         if (!ev.includes("bloque")) ev.push("bloque");
       }
@@ -607,7 +608,7 @@
     }
     for (const a of m.anneaux) {
       if (!appui || j.anneaux.includes(a.id)) continue;
-      if (Math.abs(j.x + U / 2 - a.x) < U && Math.abs(j.y + U / 2 - a.y) < U) { j.vy = SAUT * s; j.tenu = true; j.anneaux.push(a.id); ev.push("anneau"); }
+      if (Math.abs(j.x + U / 2 - a.x) < U && Math.abs(j.y + U / 2 - a.y) < U) { j.vy = SAUT * s; j.tenu = false; j.anneaux.push(a.id); ev.push("anneau"); }
     }
     for (const o of m.bulles) {
       if (j.bulles.includes(o.id)) continue;
@@ -700,7 +701,7 @@
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, etape, laser, solSous, MORCEAUX, LISTES,
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, etape, laser, solSous, MORCEAUX, LISTES,
     yTombant, yMobile, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
