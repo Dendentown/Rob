@@ -140,6 +140,7 @@
     if (ev.includes("glisse")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 12);
     if (ev.includes("choc")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 12); secousse = 0.15; }
     if (ev.includes("bloque") && Math.random() < 0.15) eclat(X_CUBE + U, j.y + U / 2, "#19f0ff", 2);
+    if (ev.includes("recul")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 16); secousse = 0.25; }
     if (ev.includes("lache")) eclat(X_CUBE + U / 2, j.y + U / 2, "#ffe14d", 12);
     if (ev.includes("rebond")) eclat(X_CUBE + U, j.y + U / 2, "#3dff7a", 8);
     if (ev.includes("bulle-prise")) eclat(X_CUBE + U / 2, j.y + U / 2, "#19f0ff", 10);
@@ -481,7 +482,7 @@
     monde.portes.forEach((o) => {
       if (o.detruit || !visible(o)) return;
       const t0 = j.trig[o.id], X = versEcran(o.x);
-      const monte = t0 == null ? 0 : Math.min(1, (tj - t0) * 3);
+      const monte = t0 == null ? 0 : Math.min(1, (tj - t0) * 10);
       const bas = o.y + o.h - monte * 200;
       if (bas <= 0) return;
       ctx.fillStyle = "#0c0424"; ctx.fillRect(X, 0, o.w, bas);
@@ -490,7 +491,7 @@
       for (let y = bas - 20; y > 0; y -= 20) ctx.fillRect(X, y, o.w, 2);
       ctx.shadowBlur = 0;
       const att = j.attente[o.id] || 0;
-      if (t0 == null && att > 0) { ctx.fillStyle = "#3dff7a"; ctx.fillRect(X - 6, bas - 30 - att * 100, 3, att * 100); }
+      if (t0 == null && att > 0) { ctx.fillStyle = "#3dff7a"; ctx.fillRect(X - 6, bas - 30 - att * 160, 3, att * 160); }
     });
     monde.boutons.forEach((o) => {
       if (!visible(o)) return;

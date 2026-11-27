@@ -455,7 +455,7 @@
   const ACCEL = 520;
   function nouveauJoueur() {
     return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0,
-      anneaux: [], flaques: [], boites: [], t: 0, grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
+      anneaux: [], flaques: [], boites: [], t: 0, recul: 0, grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
   }
   // copie indépendante (pour les simulations)
   function copier(j) {
@@ -470,7 +470,7 @@
     placer(j, r);
   }
   function placer(j, r) { // à l'arrêt sur un point de reprise (au plafond si on est dans une partie à l'envers)
-    Object.assign(j, { x: r.x + 2, y: r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, croc: null, grav: r.inv ? -1 : 1,
+    Object.assign(j, { x: r.x + 2, y: r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, croc: null, recul: 0, grav: r.inv ? -1 : 1,
       charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
   }
 
@@ -478,7 +478,7 @@
   const vitesseJoueur = (j) => j.v;
 
   // ---------- Pièges animés (leur état dépend du temps du joueur et de ce qu'il a déclenché) ----------
-  const CHUTE_DELAI = 0.55, FRAGILE_DELAI = 0.3, PORTE_ATTENTE = 0.4;
+  const CHUTE_DELAI = 0.55, FRAGILE_DELAI = 0.3, PORTE_ATTENTE = 0.25;
   function yTombant(o, j) { // haut du cube qui tombe
     const t0 = j.trig[o.id];
     if (t0 == null) return o.y0;
@@ -525,7 +525,8 @@
     if (j.tenu && !appui) j.tenu = false;
     if (j.vy * s >= 0) j.tenu = false;
     const xa = j.x, ya = j.y;
-    j.x += j.v * dt;
+    if (j.recul > 0) { j.recul = Math.max(0, j.recul - dt); j.v = 0; j.x -= 420 * dt; } // repoussé en arrière par une scie
+    else j.x += j.v * dt;
     j.vy += G * (j.tenu ? G_TENU : 1) * s * dt; j.y += j.vy * dt;
     j.sol = false;
 
@@ -548,16 +549,21 @@
         if (r.src) r.src.detruit = true; else r.detruit = true;
         ev.push("casse");
       } else {
-        // de côté : on est bloqué contre
+        // de côté : on est bloqué contre (ou, repoussé en arrière, contre ce qui est derrière)
+        if (j.recul > 0 && xa >= r.x + r.w - 3) { j.x = r.x + r.w - 1; j.recul = 0; continue; }
         j.x = Math.min(j.x, r.x - U + 1); j.v = 0; contreMur = true;
-        if (r.type === "porte") {
-          j.attente[r.src.id] = (j.attente[r.src.id] || 0) + dt;
-          if (j.attente[r.src.id] > PORTE_ATTENTE) { j.trig[r.src.id] = j.t; ev.push("porte"); }
-        }
         if (r.type === "rebond" && appui && !j.sol && j.rebonds < 4 && j.vy * s > -250) {
           j.vy = SAUT_V * s; j.tenu = true; j.rebonds++; ev.push("rebond");
         }
         if (!ev.includes("bloque")) ev.push("bloque");
+      }
+    }
+    // porte fermée : le temps passé collé contre elle compte, et elle s'ouvre vite (on repart aussitôt à pleine vitesse)
+    for (const o of m.portes) {
+      if (o.detruit || j.trig[o.id] != null) continue;
+      if (j.x + U >= o.x - 4 && j.x < o.x && j.y + U > o.y && j.y < o.y + o.h) {
+        j.attente[o.id] = (j.attente[o.id] || 0) + dt;
+        if (j.attente[o.id] > PORTE_ATTENTE) { j.trig[o.id] = j.t; j.v = vitesseCroisiere(j); ev.push("porte"); }
       }
     }
     if (j.sol) { j.rebonds = 0; j.charge = false; }
@@ -593,7 +599,7 @@
       if (o.detruit || Math.abs(o.x - j.x) > o.L + U) continue;
       const b = posPendule(o, j.t);
       const cx = Math.max(j.x + 3, Math.min(b.x, j.x + U - 3)), cy = Math.max(j.y + 3, Math.min(b.y, j.y + U - 3));
-      if ((cx - b.x) ** 2 + (cy - b.y) ** 2 < (o.r - 3) ** 2) aie(o, b.y < j.y);
+      if ((cx - b.x) ** 2 + (cy - b.y) ** 2 < (o.r - 3) ** 2) { const avant = ev.length; aie(o, b.y < j.y); if (ev.length > avant && ev[ev.length - 1] === "choc") { j.recul = 0.3; j.v = 0; ev.push("recul"); } }
     }
     if (j.y > H || j.y < -2 * U) {
       if (j.bouclier && s > 0) { j.bouclier = false; j.vy = SAUT_TREMPLIN * 1.1; j.y = H - 1; ev.push("bouclier"); }
