@@ -18,6 +18,28 @@
     #btn-objet .reserve { font-size: 0.75em; opacity: 0.75; border-left: 2px solid #4a3a66; padding-left: 0.8rem; }
     #btn-objet:disabled { opacity: 0.35; box-shadow: none; }
     body { touch-action: none; -webkit-user-select: none; user-select: none; }
+    /* Téléphone : affichage PAYSAGE compact (terrain le plus grand possible) ;
+       tenu en hauteur, tout l'écran pivote (.pivote) : on tourne le téléphone */
+    body.pivote {
+      position: fixed; top: 0; left: 0;
+      width: 100vh; width: 100dvh; height: 100vw;
+      transform-origin: top left; transform: translateX(100vw) rotate(90deg);
+    }
+    body.paysage .barre-jeu { padding: 6px 10px 0; }
+    body.paysage .barre-jeu .titre { font-size: calc(4 * var(--court)); }
+    body.paysage .barre-jeu .icone { width: calc(10 * var(--court)); height: calc(10 * var(--court)); font-size: calc(4 * var(--court)); }
+    body.paysage .corps-jeu { flex-direction: row; gap: 10px; padding: 8px 10px 10px; width: 100%; }
+    body.paysage .panneau-lateral { width: calc(32 * var(--court)); flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; }
+    body.paysage .info-jeu { flex: none; min-width: 0; padding: 4px; }
+    body.paysage .info-jeu .lib { font-size: calc(2.2 * var(--court)); }
+    body.paysage .info-jeu .val { font-size: calc(2.8 * var(--court)); }
+    body.paysage .salle { flex-direction: column; flex-wrap: nowrap; font-size: calc(3.6 * var(--court)); }
+    body.paysage .panneau-lateral .barre-objet { margin-top: auto; padding: 0; }
+    body.paysage #btn-objet { width: 100%; height: calc(14 * var(--court)); font-size: calc(3 * var(--court)); flex-direction: column; gap: 2px; }
+    body.paysage #btn-objet .reserve { border-left: 0; padding-left: 0; }
+    body.paysage .overlay h2 { font-size: calc(5 * var(--court)); }
+    body.paysage .overlay p { font-size: calc(4.4 * var(--court)); }
+    body.paysage .overlay .bouton { font-size: calc(3 * var(--court)); padding: calc(2 * var(--court)) calc(4 * var(--court)); }
   </style>
 </head>
 <body class="page-jeu">
@@ -64,6 +86,24 @@
   <script src="../../commun/coop.js"></script>
   <script src="../../commun/page.js"></script>
   <script src="moteur.js"></script>
+  <script>
+    // téléphone (écran tactile) → affichage paysage compact ; tenu en hauteur → tout pivote
+    (function () {
+      const barre = document.querySelector(".barre-objet"), panneau = document.querySelector(".panneau-lateral");
+      const finDeBody = barre.nextElementSibling;
+      function orienter() {
+        const p = matchMedia("(pointer: coarse)").matches;
+        document.body.classList.toggle("paysage", p);
+        document.body.classList.toggle("pivote", p && innerHeight > innerWidth);
+        document.body.style.setProperty("--court", Math.min(innerWidth, innerHeight) / 100 + "px");
+        if (p && barre.parentElement !== panneau) panneau.append(barre);
+        if (!p && barre.parentElement === panneau) document.body.insertBefore(barre, finDeBody);
+        if (window.Page) Page.ajuster();
+      }
+      addEventListener("resize", orienter);
+      orienter();
+    })();
+  </script>
   <script src="dash.js"></script>
 </body>
 </html>

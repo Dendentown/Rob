@@ -47,7 +47,7 @@
 
   // etat : "menu" | "compte" (3,2,1) | "jeu" | "arrive"
   let mode = "menu", etat = "menu";
-  let monde = null, j = null, appui = false, sac = [], particules = [], rayons = [], compte = 0;
+  let monde = null, j = null, appui = false, demande = false, sac = [], particules = [], rayons = [], compte = 0;
   let course = null, depart = 0, temps = 0, autres = {}, maCouleur = 0, liens = [], secousse = 0;
 
   const score = () => Math.floor((j ? j.x : 0) / U);
@@ -68,7 +68,7 @@
   const pointsSolo = (t) => Math.round(100000 / Math.max(1, t));
 
   // ---------- Commandes ----------
-  function presser() { if (etat === "jeu") appui = true; }
+  function presser() { if (etat === "jeu") { appui = true; demande = true; } } // demande : un tap très bref compte quand même
   addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
     if (["e", "shift", "enter", "arrowright"].includes(k)) { e.preventDefault(); utiliserObjet(); return; }
@@ -140,7 +140,7 @@
   function mettreAJour(dt) {
     M.etendre(monde, j.x + 2 * W);
     if (mode === "solo" && Math.random() < 0.01) M.nettoyer(monde, j.x - 2000);
-    const ev = M.etape(j, monde, dt, appui);
+    const ev = M.etape(j, monde, dt, appui || demande); demande = false;
     if (ev.includes("boite")) { donnerObjet(); eclat(X_CUBE + U / 2, j.y, "#ffe14d", 10); }
     if (ev.includes("bouclier")) eclat(X_CUBE + U / 2, j.y + U / 2, "#3dff7a", 16);
     if (ev.includes("casse")) eclat(X_CUBE + U, j.y + U / 2, "#ff8a1f", 10);
