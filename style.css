@@ -236,7 +236,7 @@ table.scores tr.separation td { border: 0; text-align: center; color: var(--doux
   padding: var(--marge) var(--marge) 0;
   width: min(1100px, 100%); margin: 0 auto;
 }
-.barre-jeu .titre { flex: 1; text-align: center; font-size: clamp(0.9rem, 3.2vh, 1.6rem); }
+.barre-jeu .titre { flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: clamp(0.7rem, min(3.2vh, 4.6vw), 1.6rem); }
 
 .corps-jeu {
   flex: 1; min-height: 0;
