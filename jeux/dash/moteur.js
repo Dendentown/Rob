@@ -398,6 +398,9 @@
       const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)) && (envers ? ENVERS_OK.includes(c.nom) : true));
       let r = m.alea() * dispo.reduce((s, c) => s + c.poids, 0), choix = dispo[0];
       for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
+      // il y a TOUJOURS au moins une partie à l'envers : si le hasard ne l'a pas encore amenée, on l'impose
+      if (!envers && !m.dejaEnvers && d >= 280) choix = MORCEAUX.find((c) => c.nom === "envers");
+      if (choix.nom === "envers") m.dejaEnvers = true;
       m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
       const tm = envers ? mondeTemp(m) : m;
       const res = choix.f(tm, m.xGen, m.g, m.alea);
