@@ -35,4 +35,13 @@ const JEUX = [
     dossier: "pong",
     statut: "disponible",
   },
+  {
+    titre: "Démineur",
+    description: "Seul, ou en course dans le lobby : même grille pour tout le monde, le plus rapide gagne !",
+    categorie: "logique",
+    icone: "💣",
+    niveau: "Tous niveaux",
+    dossier: "demineur",
+    statut: "disponible",
+  },
 ];
