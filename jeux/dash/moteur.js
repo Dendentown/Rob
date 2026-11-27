@@ -78,11 +78,34 @@
   function pique(m, x, yBase, bas) { m.piques.push({ id: m.id++, x, y: yBase, bas: !!bas }); }
   function tremplin(m, x, g) {
     m.tremplins.push({ id: m.id++, x, y: yDe(g) });
-    // une boîte « ? » posée juste au-dessus du tremplin : on la prend en rebondissant
-    m.boites.push({ id: m.id++, x: x + U / 2, y: yDe(g + 1.2) });
   }
   function anneau(m, x, niveau) { m.anneaux.push({ id: m.id++, x, y: yDe(niveau) }); }
   function boite(m, x, niveau) { m.boites.push({ id: m.id++, x, y: yDe(niveau) }); }
+  // dalle fine (plateforme) dont le dessus est au niveau donné
+  function dalle(m, x1, x2, niveau) { m.rects.push({ id: m.id++, x: x1, y: yDe(niveau), w: x2 - x1, h: 0.5 * U, type: "bloc" }); }
+
+  // Sommet du PLUS GRAND saut possible depuis le bord d'une marche : on simule le cube qui court
+  // sur la marche à la vitesse de croisière, saute au tout dernier moment et garde appuyé.
+  function sommetSautMax(marche) {
+    const tw = { rects: [marche], fin: Infinity, reperes: [] };
+    LISTES.forEach((k) => { if (!tw[k]) tw[k] = []; });
+    let j = nouveauJoueur();
+    Object.assign(j, { x: marche.x, y: marche.y - U, v: vitesseBase(marche.x), sol: true });
+    let dernier = copier(j);
+    for (let i = 0; i < 600; i++) { // court sans sauter : on garde le dernier instant encore sur la marche
+      const c = copier(j); etape(c, tw, 1 / 120, false);
+      if (!c.sol) break;
+      dernier = copier(j); j = c;
+    }
+    j = dernier;
+    let best = { x: j.x, y: j.y };
+    for (let i = 0; i < 240; i++) {
+      etape(j, tw, 1 / 120, true);
+      if (j.y < best.y) best = { x: j.x, y: j.y };
+      if (j.vy > 0) break;
+    }
+    return best; // coin haut-gauche du cube au sommet
+  }
 
   // Chaque morceau commence par du sol au niveau courant g (point de reprise sûr)
   const MORCEAUX = [
@@ -154,12 +177,28 @@
       }
       return { l: (cx - x) / U, g: gi };
     } },
-    { nom: "escalier", min: 80, poids: 2, f(m, x, g, a) {
-      sol(m, x, x + 13 * U, g);
-      bloc(m, x + 2 * U, g + 1, 2 * U, 1); bloc(m, x + 4 * U, g + 2, 2 * U, 2); bloc(m, x + 6 * U, g + 3, 2 * U, 3);
-      pique(m, x + 9 * U, yDe(g)); pique(m, x + 10 * U, yDe(g));
-      if (a() < 0.4) boite(m, x + 7 * U, g + 5.5);
-      return { l: 13, g };
+    { nom: "escalier", min: 80, poids: 3, f(m, x, g, a) {
+      bloc(m, x + 2 * U, g + 1, 2 * U, 1); bloc(m, x + 4 * U, g + 2, 2 * U, 2);
+      const haut = { id: m.id++, x: x + 6 * U, y: yDe(g + 3), w: 2 * U, h: 3 * U, type: "bloc" };
+      m.rects.push(haut);
+      if (a() < 0.45) {
+        // l'escalier mène à une plateforme haute (en bas, des piques à sauter sous elle)
+        const l = 21;
+        sol(m, x, x + l * U, g);
+        dalle(m, x + 8 * U, x + 18 * U, g + 3);
+        pique(m, x + 11 * U, yDe(g)); pique(m, x + 15 * U, yDe(g));
+        if (a() < 0.5) pique(m, x + 13 * U, yDe(g + 3));
+        if (a() < 0.5) boite(m, x + 16.5 * U, g + 4.2);
+        return { l, g };
+      }
+      // long tapis de piques après l'escalier : il FAUT le plus grand saut, depuis le haut des marches.
+      // Une boîte n'est atteignable qu'avec le saut parfait (au tout dernier moment, appui maximal).
+      const l = 19;
+      sol(m, x, x + l * U, g);
+      for (let i = 9; i < 16; i++) pique(m, x + i * U, yDe(g));
+      const s0 = sommetSautMax(haut);
+      m.boites.push({ id: m.id++, x: s0.x + U / 2 + 36, y: s0.y + U / 2 - 22 }); // réglé par simulation : saut parfait seulement
+      return { l, g };
     } },
     { nom: "plafond-piques", min: 150, poids: 2, f(m, x, g, a) {
       const len = 5 + ((a() * 4) | 0), l = len + 4, yb = yDe(g + 3);
@@ -369,12 +408,31 @@
       bloc(m, x + 13 * U, g + 1); pique(m, x + 17 * U, yDe(g));
       return { l, g };
     } },
-    { nom: "tremplin", min: 450, poids: 2, f(m, x, g, a) {
-      if (g === 0 && a() < 0.5) {
+    { nom: "tremplin", min: 450, poids: 3, f(m, x, g, a) {
+      const r = a();
+      if (g === 0 && r < 0.25) {
         // le tremplin fait monter sur un sol 3 niveaux plus haut
         sol(m, x, x + 4 * U, 0); tremplin(m, x + 1.5 * U, 0);
         sol(m, x + 4 * U, x + 8 * U, 3);
         return { l: 8, g: 3 };
+      }
+      if (r < 0.7) {
+        // le tremplin donne accès à une plateforme haute : un petit passage gardé
+        // (scie, porte laser ou piques) protège une boîte « ? » au bout
+        const l = 20, h = g + 5;
+        sol(m, x, x + l * U, g); tremplin(m, x + 1.5 * U, g);
+        dalle(m, x + 6 * U, x + 18 * U, h);
+        pique(m, x + 9 * U, yDe(g)); pique(m, x + 13 * U, yDe(g));
+        const garde = a();
+        // les gardiens repoussent en arrière : sans bien jouer, on retombe de la plateforme
+        if (garde < 0.34) { pique(m, x + 11 * U, yDe(h)); pique(m, x + 12 * U, yDe(h)); m.piques.slice(-2).forEach((p) => (p.repousse = true)); }
+        else if (garde < 0.67) {
+          const ph = a() * 6.283;
+          m.lasers.push({ id: m.id++, x: x + 12 * U + 12, w: 6, y1: yDe(h) - 1.6 * U, y2: yDe(h), P: 1.4, ph, repousse: true });
+          m.lasers.push({ id: m.id++, x: x + 12 * U + 12, w: 6, y1: yDe(h) - 5 * U, y2: yDe(h) - 2.2 * U, P: 1.4, ph: ph + Math.PI, repousse: true });
+        } else m.pendules.push({ id: m.id++, x: x + 12 * U, py: yDe(h) - 6.9 * U, L: 6 * U, amp: 0.7, P: 2.4, ph: a() * 6.283, r: 13 });
+        boite(m, x + 16 * U, h + 1.2);
+        return { l, g };
       }
       sol(m, x, x + 10 * U, g); tremplin(m, x + 1.5 * U, g);
       for (let i = 3; i < 8; i++) pique(m, x + i * U, yDe(g));
@@ -600,6 +658,7 @@
       j.v *= 0.25; j.inv = 0.7;
       j.vy = bas ? Math.max(j.vy, 250) : Math.min(j.vy, -380); // vers le bas (plafond) ou petit rebond
       ev.push("choc");
+      if (src && src.repousse && j.recul <= 0) { j.recul = 0.35; j.v = 0; ev.push("recul"); } // gardien : repousse en arrière
     }
     for (const p of m.piques) {
       if (p.detruit || p.x > j.x + U || p.x + U < j.x) continue;
