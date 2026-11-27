@@ -12,8 +12,9 @@
    gravité, tapis roulants, murs à rebond, lasers alternés, pendules,
    portes à interrupteur, bulles de saut, deux voies, zone sombre.
 
-   BOÎTES « ? » : un objet à la fois, à utiliser avec le bouton sous le
-   terrain (ou E / Maj / Entrée) :
+   BOÎTES « ? » : un objet en main + un en réserve (utilisés dans l'ordre
+   où on les a ramassés), avec le bouton sous le terrain (ou E / Maj / Entrée).
+   Chaque tremplin envoie sur une boîte. Objets :
      T turbo (plus vite et casse les obstacles)
      G grappin (s'accroche au plafond et se balance vers l'avant : élan)
      L laser (rayon en ligne droite jusqu'au bord de l'écran : détruit
@@ -46,7 +47,7 @@
 
   // etat : "menu" | "compte" (3,2,1) | "jeu" | "arrive"
   let mode = "menu", etat = "menu";
-  let monde = null, j = null, appui = false, objet = null, particules = [], rayons = [], compte = 0;
+  let monde = null, j = null, appui = false, sac = [], particules = [], rayons = [], compte = 0;
   let course = null, depart = 0, temps = 0, autres = {}, maCouleur = 0, liens = [], secousse = 0;
 
   const score = () => Math.floor((j ? j.x : 0) / U);
@@ -58,7 +59,7 @@
     course = { id: 0, longueur: LONGUEUR_COURSE };
     monde = M.creerMonde((Math.random() * 2 ** 31) | 0, { longueur: LONGUEUR_COURSE });
     j = M.nouveauJoueur();
-    objet = null; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
+    sac = []; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
     etat = "compte"; compte = 3;
     $("#overlay").hidden = true;
     majBoutonObjet();
@@ -88,21 +89,27 @@
   $("#btn-objet").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); utiliserObjet(); });
 
   // ---------- Objets ----------
+  // Sac : un objet en main + un en réserve ; on les utilise dans l'ordre où on les a ramassés
+  const SAC_MAX = 2;
   function donnerObjet() {
-    if (objet) return;
+    if (sac.length >= SAC_MAX) return;
     const liste = mode === "course" ? COURSE_OBJETS : ["turbo", "grappin", "laser"];
-    objet = liste[(Math.random() * liste.length) | 0];
+    sac.push(liste[(Math.random() * liste.length) | 0]);
     majBoutonObjet();
   }
   function majBoutonObjet() {
-    const b = $("#btn-objet");
-    b.textContent = objet ? OBJETS[objet].nom : "—";
-    b.style.setProperty("--c", objet ? OBJETS[objet].c : "#4a3a66");
-    b.disabled = !objet;
+    const b = $("#btn-objet"), o = sac[0], r = sac[1];
+    b.replaceChildren();
+    if (o) {
+      b.append(OBJETS[o].nom);
+      if (r) { const sp = document.createElement("span"); sp.className = "reserve"; sp.textContent = OBJETS[r].nom; sp.style.color = OBJETS[r].c; b.append(sp); }
+    } else b.append("—");
+    b.style.setProperty("--c", o ? OBJETS[o].c : "#4a3a66");
+    b.disabled = !o;
   }
   function utiliserObjet() {
-    if (!objet || !j || etat !== "jeu") return;
-    const o = objet;
+    if (!sac.length || !j || etat !== "jeu") return;
+    const o = sac.shift();
     if (o === "grappin") {
       // en course : un adversaire pas trop loin devant → on s'accroche à lui (il est tiré en arrière, on prend son élan)
       const cible = mode === "course" && Object.entries(autres).filter(([, d]) => d.d > j.x && d.d - j.x < 15 * U && d.e !== "arrive").sort((a, b) => a[1].d - b[1].d)[0];
@@ -112,7 +119,7 @@
         j.v = M.vitesseCroisiere(j) * 1.8; j.boost = Math.max(j.boost, 0.8);
       } else M.accrocher(j, monde); // sinon : au plafond, et on se balance vers l'avant
     }
-    objet = null; majBoutonObjet();
+    majBoutonObjet();
     if (o === "turbo") j.boost = 2.5;
     if (o === "bouclier") j.bouclier = true;
     if (o === "laser") {
@@ -206,7 +213,7 @@
     course = c; mode = "course";
     monde = M.creerMonde(c.graine, { longueur: c.longueur, course: true });
     j = M.nouveauJoueur();
-    objet = null; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
+    sac = []; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
     majBoutonObjet();
     etat = "compte"; compte = 3;
     $("#overlay").hidden = true;
@@ -601,7 +608,7 @@
 
   window.__dash = {
     get etat() { return etat; }, get mode() { return mode; }, get distance() { return j ? j.x : 0; }, get joueur() { return j; }, get monde() { return monde; },
-    get objet() { return objet; }, set objet(o) { objet = o; majBoutonObjet(); }, get autres() { return autres; }, get temps() { return temps; },
+    get objet() { return sac[0] || null; }, set objet(o) { sac = o ? [o] : []; majBoutonObjet(); }, get sac() { return sac; }, get autres() { return autres; }, get temps() { return temps; },
     set appui(v) { appui = v; }, nouvellePartie, utiliserObjet, lancerCourse, classement,
     allerA(x) { M.etendre(monde, x + 2 * W); j.x = x; M.reprise(j, monde); },
   };

@@ -76,7 +76,13 @@
   }
   function plafond(m, x1, x2, yBas) { m.rects.push({ id: m.id++, x: x1, y: -400, w: x2 - x1, h: yBas + 400, type: "plafond" }); }
   function pique(m, x, yBase, bas) { m.piques.push({ id: m.id++, x, y: yBase, bas: !!bas }); }
-  function tremplin(m, x, g) { m.tremplins.push({ id: m.id++, x, y: yDe(g) }); }
+  function tremplin(m, x, g) {
+    m.tremplins.push({ id: m.id++, x, y: yDe(g) });
+    // une boîte « ? » sur la trajectoire du rebond, près du sommet
+    const v = vitesseBase(x), t = 0.36;
+    const dx = v * t, dy = -SAUT_TREMPLIN * t - 0.5 * G * t * t;
+    m.boites.push({ id: m.id++, x: x + U / 2 + dx, y: yDe(g) - U / 2 - dy });
+  }
   function anneau(m, x, niveau) { m.anneaux.push({ id: m.id++, x, y: yDe(niveau) }); }
   function boite(m, x, niveau) { m.boites.push({ id: m.id++, x, y: yDe(niveau) }); }
 
@@ -374,7 +380,6 @@
       }
       sol(m, x, x + 10 * U, g); tremplin(m, x + 1.5 * U, g);
       for (let i = 3; i < 8; i++) pique(m, x + i * U, yDe(g));
-      if (a() < 0.4) boite(m, x + 5.5 * U, g + 6);
       return { l: 10, g };
     } },
     { nom: "anneau", min: 600, poids: 1, f(m, x, g, a) {
@@ -404,7 +409,7 @@
       let r = m.alea() * dispo.reduce((s, c) => s + c.poids, 0), choix = dispo[0];
       for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
       // il y a TOUJOURS au moins une partie à l'envers : si le hasard ne l'a pas encore amenée, on l'impose
-      if (!envers && !m.dejaEnvers && d >= 280) choix = MORCEAUX.find((c) => c.nom === "envers");
+      if (!envers && !m.dejaEnvers && d >= 280) choix = MORCEAUX.find((c) => c.nom === "envers") || choix;
       if (choix.nom === "envers") m.dejaEnvers = true;
       m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
       const tm = envers ? mondeTemp(m) : m;
