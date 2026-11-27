@@ -12,17 +12,18 @@
    gravité, tapis roulants, murs à rebond, lasers alternés, pendules,
    portes à interrupteur, bulles de saut, deux voies, zone sombre.
 
-   BOÎTES « ? » : un objet à la fois, à utiliser avec le bouton en bas
-   à droite (ou E / Maj / Entrée) :
-     T turbo (plus vite et casse les obstacles)   B bouclier (encaisse
-     un choc, une flaque, un grappin… ou fait rebondir au-dessus d'un
-     trou)   L laser (détruit les obstacles devant)
+   BOÎTES « ? » : un objet à la fois, à utiliser avec le bouton sous le
+   terrain (ou E / Maj / Entrée) :
+     T turbo (plus vite et casse les obstacles)
+     G grappin (s'accroche au plafond et se balance vers l'avant : élan)
+     L laser (rayon en ligne droite jusqu'au bord de l'écran : détruit
+       les obstacles à hauteur du cube)
    En COURSE, des objets contre les autres :
      R ralentir (tous les autres pendant 3 s)
      F flaque d'eau (qui passe dessus glisse : immobilisé 1 s)
-     G grappin (attrape le joueur le plus proche devant, le ramène
-       derrière toi, et toi tu es propulsé en avant)
-     et le laser immobilise aussi les joueurs juste devant (1,2 s).
+     G grappin : si un adversaire est assez proche devant, on s'accroche
+       à LUI (il est ramené derrière, on prend son élan)
+     et le laser immobilise aussi les joueurs devant dans l'écran (1,2 s).
 
    SOLO : contre-la-montre sur 600 blocs. Score = 100 000 / temps (s).
    COURSE (lobby) : l'hôte lance, même parcours pour tous (même graine),
@@ -49,7 +50,7 @@
   let course = null, depart = 0, temps = 0, autres = {}, maCouleur = 0, liens = [], secousse = 0;
 
   const score = () => Math.floor((j ? j.x : 0) / U);
-  const COURSE_OBJETS = ["turbo", "bouclier", "laser", "ralentir", "flaque", "grappin", "laser", "ralentir", "flaque", "grappin"];
+  const COURSE_OBJETS = ["turbo", "grappin", "laser", "ralentir", "flaque", "grappin", "laser", "ralentir", "flaque", "turbo"];
 
   // ---------- Solo ----------
   function nouvellePartie() {
@@ -89,7 +90,7 @@
   // ---------- Objets ----------
   function donnerObjet() {
     if (objet) return;
-    const liste = mode === "course" ? COURSE_OBJETS : ["turbo", "bouclier", "laser"];
+    const liste = mode === "course" ? COURSE_OBJETS : ["turbo", "grappin", "laser"];
     objet = liste[(Math.random() * liste.length) | 0];
     majBoutonObjet();
   }
@@ -103,19 +104,20 @@
     if (!objet || !j || etat !== "jeu") return;
     const o = objet;
     if (o === "grappin") {
-      // le joueur le plus proche devant, à moins de 15 blocs
-      const cible = Object.entries(autres).filter(([, d]) => d.d > j.x && d.d - j.x < 15 * U && d.e !== "arrive").sort((a, b) => a[1].d - b[1].d)[0];
-      if (!cible) { eclat(X_CUBE + U / 2, j.y, "#ffe14d", 4); return; } // personne à portée : on garde l'objet
-      liens.push({ de: X_CUBE + U / 2, dy: j.y + U / 2, vers: cible[1].d, vy: cible[1].y + U / 2, t: 0.4 });
-      evenement("grappin", { cible: cible[0], d: j.x });
-      j.v = M.vitesseCroisiere(j) * 1.8; j.boost = Math.max(j.boost, 0.8);
+      // en course : un adversaire pas trop loin devant → on s'accroche à lui (il est tiré en arrière, on prend son élan)
+      const cible = mode === "course" && Object.entries(autres).filter(([, d]) => d.d > j.x && d.d - j.x < 15 * U && d.e !== "arrive").sort((a, b) => a[1].d - b[1].d)[0];
+      if (cible) {
+        liens.push({ de: X_CUBE + U / 2, dy: j.y + U / 2, vers: cible[1].d, vy: cible[1].y + U / 2, t: 0.4 });
+        evenement("grappin", { cible: cible[0], d: j.x });
+        j.v = M.vitesseCroisiere(j) * 1.8; j.boost = Math.max(j.boost, 0.8);
+      } else M.accrocher(j, monde); // sinon : au plafond, et on se balance vers l'avant
     }
     objet = null; majBoutonObjet();
     if (o === "turbo") j.boost = 2.5;
     if (o === "bouclier") j.bouclier = true;
     if (o === "laser") {
-      const r = M.laser(j, monde, 9);
-      rayons.push({ x1: r.x1, x2: r.x2, y: j.y + U / 2, t: 0.35 });
+      const r = M.laser(j, monde, W - X_CUBE); // jusqu'au bord de l'écran
+      rayons.push({ x1: r.x1, x2: r.x2, y: r.y, t: 0.35 });
       evenement("laser", { d: j.x });
     }
     if (o === "ralentir") evenement("ralentir", {});
@@ -138,6 +140,7 @@
     if (ev.includes("glisse")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 12);
     if (ev.includes("choc")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 12); secousse = 0.15; }
     if (ev.includes("bloque") && Math.random() < 0.15) eclat(X_CUBE + U, j.y + U / 2, "#19f0ff", 2);
+    if (ev.includes("lache")) eclat(X_CUBE + U / 2, j.y + U / 2, "#ffe14d", 12);
     if (ev.includes("rebond")) eclat(X_CUBE + U, j.y + U / 2, "#3dff7a", 8);
     if (ev.includes("bulle-prise")) eclat(X_CUBE + U / 2, j.y + U / 2, "#19f0ff", 10);
     if (ev.includes("bulle")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 8);
@@ -237,7 +240,7 @@
     }
     if (e.de === session.id) return;
     if (e.type === "ralentir") { if (j.bouclier) j.bouclier = false; else j.lent = 3; eclat(X_CUBE + U / 2, j.y, "#b388ff", 12); }
-    if (e.type === "laser" && j.x > e.d && j.x < e.d + 12 * U) {
+    if (e.type === "laser" && j.x > e.d && j.x < e.d + (W - X_CUBE)) {
       if (j.bouclier) j.bouclier = false; else { j.stun = 1.2; j.v = 0; }
       eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 16);
     }
@@ -530,6 +533,16 @@
     // particules
     particules.forEach((p) => { ctx.globalAlpha = Math.max(0, p.t * 2); ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 4, 4); });
     ctx.globalAlpha = 1;
+    // corde du grappin
+    if (j.croc) {
+      const ax = versEcran(j.croc.ax), ay = j.croc.ay;
+      ctx.strokeStyle = "#ffe14d"; ctx.lineWidth = 3; ctx.shadowColor = "#ffe14d"; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.moveTo(X_CUBE + U / 2, j.y + U / 2); ctx.lineTo(ax, ay); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#ffe14d"; ctx.fillRect(ax - 5, ay - 3, 10, 6);
+      if (j.croc.air) { // pas de plafond proche : le câble remonte jusqu'en haut (ou en bas à l'envers)
+        ctx.globalAlpha = 0.5; ctx.fillRect(ax - 1, j.croc.s > 0 ? 0 : ay, 2, j.croc.s > 0 ? ay : H - ay); ctx.globalAlpha = 1;
+      }
+    }
     // mon cube
     {
       const clignote = (j.stun > 0 || j.inv > 0) && (t / 80) % 2 < 1;

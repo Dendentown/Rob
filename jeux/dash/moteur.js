@@ -458,7 +458,7 @@
   // copie indépendante (pour les simulations)
   function copier(j) {
     return Object.assign({}, j, { anneaux: j.anneaux.slice(), flaques: j.flaques.slice(), boites: j.boites.slice(), bulles: j.bulles.slice(),
-      trig: Object.assign({}, j.trig), attente: Object.assign({}, j.attente) });
+      trig: Object.assign({}, j.trig), attente: Object.assign({}, j.attente), croc: j.croc ? Object.assign({}, j.croc) : null });
   }
 
   // point de reprise : le dernier repère derrière le joueur (les pièges déclenchés sont remis en place)
@@ -468,7 +468,7 @@
     placer(j, r);
   }
   function placer(j, r) { // à l'arrêt sur un point de reprise (au plafond si on est dans une partie à l'envers)
-    Object.assign(j, { x: r.x + 2, y: r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, grav: r.inv ? -1 : 1,
+    Object.assign(j, { x: r.x + 2, y: r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, croc: null, grav: r.inv ? -1 : 1,
       charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
   }
 
@@ -509,6 +509,7 @@
     const s = j.grav; // 1 = normal, -1 = la tête en bas
     const presse = appui && !j.prec; j.prec = appui;
     ["boost", "lent", "stun", "inv"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
+    if (j.croc) { balancer(j, m, dt, ev); if (j.croc) { if (j.x >= m.fin) ev.push("fini"); return ev; } }
     // déclencheurs : cubes qui tombent quand on arrive
     for (const o of m.tombants) {
       if (j.trig[o.id] == null && o.x > j.x && (o.x - j.x) / Math.max(j.v, 60) < CHUTE_DELAI) j.trig[o.id] = j.t;
@@ -634,13 +635,63 @@
   }
 
   // Laser : détruit les obstacles (pas le sol) devant le joueur
+  // Laser : rayon en LIGNE DROITE devant le cube, jusqu'au bord de l'écran (portee en px).
+  // Il détruit les obstacles (pas le sol ni les plafonds) qui croisent la bande à hauteur du cube.
   function laser(j, m, portee) {
-    const x1 = j.x + U, x2 = j.x + U + (portee || 9) * U;
+    const x1 = j.x + U, x2 = j.x + (portee || 620);
+    const y1 = j.y - 1.5 * U, y2 = j.y + 2.5 * U;
+    const dansX = (x, w) => x < x2 && x + (w || U) > x1;
+    const dansY = (a, b) => a < y2 && b > y1;
     let n = 0;
-    m.rects.forEach((r) => { if (r.type !== "sol" && !r.detruit && r.x < x2 && r.x + r.w > x1) { r.detruit = true; n++; } });
-    m.piques.forEach((p) => { if (!p.detruit && p.x < x2 && p.x + U > x1) { p.detruit = true; n++; } });
-    ["tombants", "lasers", "pendules", "portes"].forEach((k) => m[k].forEach((o) => { if (!o.detruit && o.x < x2 && o.x + (o.w || U) > x1) { o.detruit = true; n++; } }));
-    return { x1, x2, n };
+    const casser = (o) => { o.detruit = true; n++; };
+    m.rects.forEach((r) => { if (!r.detruit && r.type !== "sol" && r.type !== "plafond" && dansX(r.x, r.w) && dansY(r.y, r.y + r.h)) casser(r); });
+    m.piques.forEach((p) => { if (!p.detruit && dansX(p.x) && (p.bas ? dansY(p.y, p.y + U) : dansY(p.y - U, p.y))) casser(p); });
+    m.tombants.forEach((o) => { const y = yTombant(o, j); if (!o.detruit && dansX(o.x, o.w) && dansY(y, y + o.h)) casser(o); });
+    m.lasers.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y1, o.y2)) casser(o); });
+    m.pendules.forEach((o) => { const b = posPendule(o, j.t); if (!o.detruit && dansX(b.x - o.r, 2 * o.r) && dansY(b.y - o.r, b.y + o.r)) casser(o); });
+    m.portes.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y, o.y + o.h)) casser(o); });
+    return { x1, x2, y: j.y + U / 2, n };
+  }
+
+  // Grappin : le cube s'accroche au plafond (ou en haut de l'écran) juste au-dessus de lui
+  // et se balance vers l'avant, puis est lâché lancé, plus vite.
+  const BALANCE_ANGLE = 0.9, BALANCE_DUREE = 0.5;
+  function accrocher(j, m) {
+    const s = j.grav, cx = j.x + U / 2, cy = j.y + U / 2;
+    let L = 10 * U, air = true;
+    if (s > 0) {
+      let haut = 0; // le plafond le plus bas au-dessus du cube
+      for (const r of m.rects) if (!r.detruit && r.x <= cx && r.x + r.w >= cx && r.y + r.h <= j.y + 1) haut = Math.max(haut, r.y + r.h);
+      L = Math.max(3 * U, Math.min(8 * U, cy - haut)); air = cy - haut > 8 * U;
+    } else {
+      let bas = H;
+      for (const r of m.rects) if (!r.detruit && r.x <= cx && r.x + r.w >= cx && r.y >= j.y + U - 1) bas = Math.min(bas, r.y);
+      L = Math.max(3 * U, Math.min(8 * U, bas - cy)); air = bas - cy > 8 * U;
+    }
+    const w = BALANCE_ANGLE / BALANCE_DUREE;
+    j.croc = { ax: cx, ay: cy - s * L, L, th: 0, w, vt: w * L, air, s };
+    j.sol = false; j.tenu = false;
+  }
+  function balancer(j, m, dt, ev) {
+    const c = j.croc, s = j.grav;
+    c.th += c.w * dt;
+    const nx = c.ax + c.L * Math.sin(c.th) - U / 2, ny = c.ay + s * c.L * Math.cos(c.th) - U / 2;
+    // l'élan du balancier casse les obstacles ; le sol et les plafonds arrêtent le balancement
+    let heurte = false;
+    for (const r of rectsDuMoment(m, j)) {
+      if (r.detruit || (r.src && r.src.detruit) || !(nx + U - 3 > r.x && nx + 3 < r.x + r.w && ny + U - 3 > r.y && ny + 3 < r.y + r.h)) continue;
+      if (["sol", "plafond", "mobile", "fragile"].includes(r.type)) heurte = true;
+      else { if (r.src) r.src.detruit = true; else r.detruit = true; if (!ev.includes("casse")) ev.push("casse"); }
+    }
+    if (!heurte) { j.x = nx; j.y = ny; }
+    j.rot += dt * 9 * s;
+    if (heurte || c.th >= BALANCE_ANGLE) {
+      // lâché : lancé vers l'avant et vers le haut, avec un élan qui dure un peu
+      j.v = Math.max(1.3 * vitesseCroisiere(j), c.vt * Math.cos(c.th));
+      j.vy = heurte ? 0 : -s * c.vt * Math.sin(c.th) * 0.75;
+      j.boost = Math.max(j.boost, 0.9);
+      j.croc = null; ev.push("lache");
+    }
   }
 
   // sol sous une abscisse (pour poser une flaque)
@@ -649,7 +700,7 @@
     return r ? r.y : null;
   }
 
-  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, etape, laser, solSous, MORCEAUX, LISTES,
+  const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, etape, laser, solSous, MORCEAUX, LISTES,
     yTombant, yMobile, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
