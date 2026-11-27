@@ -193,7 +193,7 @@
       bloc(m, x + 2 * U, g + 1, 2 * U, 1); bloc(m, x + 4 * U, g + 2, 2 * U, 2);
       const haut = { id: m.id++, x: x + 6 * U, y: yDe(g + 3), w: 2 * U, h: 3 * U, type: "bloc" };
       m.rects.push(haut);
-      if (a() < 0.45) {
+      if (g <= 2 && a() < 0.45) {
         // plateforme haute séparée de l'escalier par un peu de vide : on ne l'atteint qu'en sautant
         // du haut des marches (une boîte flotte dans le vide, sur la trajectoire du saut).
         // Parfois DEUX plateformes en escalier (pique ou scie sur la première, un objet dans le vide à la fin).
@@ -213,13 +213,14 @@
           m.boites.push({ id: m.id++, x: s2.x + U / 2 - 0.5 * U, y: s2.y + U / 2 + 0.8 * U });
           return { l, g };
         }
-        const s0 = sommetSautMax(haut);
-        m.boites.push({ id: m.id++, x: s0.x + U / 2 - 0.5 * U, y: s0.y + U / 2 + 0.8 * U }); // facile : un peu sous le sommet
-        const l = 26;
+        // trois plateformes : basse, HAUTE (avec l'objet), basse
+        const l = 34;
         sol(m, x, x + l * U, g);
-        dalle(m, x + 12 * U, x + 22 * U, g + 4.6);
-        pique(m, x + 13 * U, yDe(g)); pique(m, x + 19 * U, yDe(g));
-        if (a() < 0.5) boite(m, x + 20 * U, g + 5.8);
+        dalle(m, x + 12 * U, x + 17 * U, g + 4.6);
+        dalle(m, x + 19 * U, x + 24 * U, g + 6.6);
+        dalle(m, x + 26 * U, x + 31 * U, g + 4.6);
+        boite(m, x + 21.5 * U, g + 7.8);
+        pique(m, x + 13 * U, yDe(g)); pique(m, x + 20 * U, yDe(g)); pique(m, x + 27 * U, yDe(g));
         return { l, g };
       }
       // long tapis de piques après l'escalier : il FAUT le plus grand saut, depuis le haut des marches.
