@@ -432,23 +432,23 @@
           for (let i = 0; i < 3; i++) m.scies.push({ id: m.id++, x: cx + (3 + i * 4.5) * U, yc: yN(4), amp: 2.6 * U, P: 1.6 + a() * 0.8, ph: a() * 6.283, r: 14 });
           cx += 16 * U;
         } else if (t === "cubes") {
+          // petits cubes en lévitation, en haut ou en bas, bien espacés
           for (let i = 0; i < 4; i++) {
             const bas = a() < 0.5;
-            if (bas) fixe(cx + (2 + i * 4) * U, U * (a() < 0.4 ? 2 : 1), 0, 2.5 + a() * 1.5);
-            else fixe(cx + (2 + i * 4) * U, U * (a() < 0.4 ? 2 : 1), 3.5 + a() * 1.5, 8);
+            if (bas) fixe(cx + (2 + i * 4.5) * U, U, 0, 1.5 + a());
+            else fixe(cx + (2 + i * 4.5) * U, U, 6 + a() * 0.5, 8);
           }
-          cx += 18 * U;
+          cx += 20 * U;
         } else if (t === "serre" || t === "zigzag") {
-          // couloir étroit (3 blocs de haut) dont le centre monte et descend
-          const pas = 3, nb = t === "zigzag" ? 8 : 6;
-          let c = 4;
-          for (let i = 0; i < nb; i++) {
-            if (t === "zigzag") c = [2.5, 3.5, 4.5, 5.5, 5.5, 4.5, 3.5, 2.5][i];
-            else c = Math.max(2.5, Math.min(5.5, c + (a() < 0.5 ? -1 : 1)));
-            fixe(cx + (1 + i * pas) * U, pas * U, 0, c - 1.5);
-            fixe(cx + (1 + i * pas) * U, pas * U, c + 1.5, 8);
-          }
-          cx += (2 + nb * pas) * U;
+          // couloir (4,5 blocs de haut) dont le centre monte et descend en pente douce
+          const pas = 3, demi = 2.25;
+          const chemin = t === "zigzag" ? [3, 3.5, 4, 4.5, 5, 5, 4.5, 4, 3.5, 3] : [];
+          if (t === "serre") { let c = 4; for (let i = 0; i < 7; i++) { c = Math.max(3, Math.min(5, c + (a() < 0.5 ? -0.5 : 0.5))); chemin.push(c); } }
+          chemin.forEach((c, i) => {
+            fixe(cx + (1 + i * pas) * U, pas * U, 0, c - demi);
+            fixe(cx + (1 + i * pas) * U, pas * U, c + demi, 8);
+          });
+          cx += (2 + chemin.length * pas) * U;
         } else {
           const ph = a() * 6.283;
           [3, 10].forEach((i, q) => {
