@@ -68,7 +68,7 @@
     etat = "fini"; mort = 0.6;
     Salle.publier(score, "fini");
     Scores.enregistrer(JEU, score, Salle.pseudo()).catch(() => {});
-    afficherOverlay("GAME OVER", `Score ${score} · longueur ${serpent.length}`, "Rejouer");
+    afficherOverlay("GAME OVER", String(score), "Rejouer");
   }
 
   // ---------- Commandes ----------
@@ -155,6 +155,6 @@
 
   Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(Salle.pseudo())));
   Salle.demarrer(JEU);
-  afficherOverlay("SNAKE", "Flèches (ou Z Q S D) · sur téléphone : glisse le doigt", "Jouer");
+  afficherOverlay("SNAKE", "", "Jouer");
   requestAnimationFrame(boucle);
 })();

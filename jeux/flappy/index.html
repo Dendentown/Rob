@@ -8,11 +8,15 @@
   <link rel="stylesheet" href="../../style.css" />
 </head>
 <body class="page-jeu">
-  <main>
-    <div class="tete-jeu"><h1>FLAPPY BIRD</h1></div>
+  <header class="barre-jeu">
+    <button id="btn-quitter" class="icone" aria-label="Quitter" title="Menu">◀</button>
+    <h1 class="titre">FLAPPY BIRD</h1>
+    <button id="btn-classement" class="icone" style="--c: var(--jaune)" aria-label="Classement" title="Classement">🏆</button>
+  </header>
 
-    <div class="zone-jeu-arcade">
-      <div class="cadre-jeu" style="--c: var(--jaune)">
+  <div class="corps-jeu">
+    <div class="zone-cadre">
+      <div class="cadre-jeu" id="terrain" data-ratio="400/600" style="--c: var(--jaune)">
         <canvas id="ecran" width="400" height="600"></canvas>
         <div class="overlay" id="overlay">
           <h2 id="ov-titre"></h2>
@@ -20,24 +24,20 @@
           <button class="bouton" id="ov-bouton"></button>
         </div>
       </div>
-      <div class="panneau-lateral">
-        <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
-        <div class="info-jeu" style="--c: var(--cyan)"><span class="lib">Vitesse</span><span class="val" id="vitesse">0</span></div>
-      </div>
     </div>
+    <aside class="panneau-lateral">
+      <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
+      <div class="info-jeu" style="--c: var(--cyan)"><span class="lib">Vitesse</span><span class="val" id="vitesse">0</span></div>
+      <ul class="salle" id="liste-salle" hidden></ul>
+    </aside>
+  </div>
 
-    <section class="salle" id="salle" hidden>
-      <p class="titre-section">👥 Dans le lobby</p>
-      <ul id="liste-salle"></ul>
-    </section>
-
-    <div class="bas-jeu">
-      <button id="btn-quitter" class="lien">◀ Menu</button>
-      <p class="titre-section">🏆 Classement Flappy Bird</p>
-      <div id="classement" class="zone-scores" style="--c: var(--jaune)"></div>
-      <p class="aide">Score : 1 point par tuyau franchi. Le défilement accélère doucement et les tuyaux se resserrent.</p>
+  <div class="modal" id="modal-classement" hidden>
+    <div class="modal-boite">
+      <div class="barre-ecran"><h2 class="titre">🏆 FLAPPY BIRD</h2><button class="icone" data-fermer aria-label="Fermer">✕</button></div>
+      <div id="classement"></div>
     </div>
-  </main>
+  </div>
 
   <script src="../../lib/firebase-app-compat.js"></script>
   <script src="../../lib/firebase-database-compat.js"></script>
@@ -46,6 +46,7 @@
   <script src="../../jeux.js"></script>
   <script src="../../commun/scores.js"></script>
   <script src="../../commun/salle.js"></script>
+  <script src="../../commun/page.js"></script>
   <script src="flappy.js"></script>
 </body>
 </html>

@@ -8,11 +8,15 @@
   <link rel="stylesheet" href="../../style.css" />
 </head>
 <body class="page-jeu">
-  <main>
-    <div class="tete-jeu"><h1>TETRIS</h1></div>
+  <header class="barre-jeu">
+    <button id="btn-quitter" class="icone" aria-label="Quitter" title="Menu">◀</button>
+    <h1 class="titre">TETRIS</h1>
+    <button id="btn-classement" class="icone" style="--c: var(--jaune)" aria-label="Classement" title="Classement">🏆</button>
+  </header>
 
-    <div class="zone-jeu-arcade">
-      <div class="cadre-jeu" style="--c: var(--rose)">
+  <div class="corps-jeu">
+    <div class="zone-cadre">
+      <div class="cadre-jeu" id="terrain" data-ratio="280/560" style="--c: var(--rose)">
         <canvas id="ecran" width="280" height="560"></canvas>
         <div class="overlay" id="overlay">
           <h2 id="ov-titre"></h2>
@@ -20,33 +24,29 @@
           <button class="bouton" id="ov-bouton"></button>
         </div>
       </div>
-      <div class="panneau-lateral">
-        <div class="info-jeu" style="--c: var(--cyan)"><span class="lib">Suivante</span><canvas id="suivante" width="110" height="80" style="display:block;margin:0 auto;image-rendering:pixelated"></canvas></div>
-        <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
-        <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Lignes</span><span class="val" id="lignes">0</span></div>
-        <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Niveau</span><span class="val" id="niveau">0</span></div>
-      </div>
     </div>
-    <div class="commandes-tactiles">
-      <button data-cmd="gauche" aria-label="Gauche">◀</button>
-      <button data-cmd="tourner" aria-label="Tourner">⟳</button>
-      <button data-cmd="droite" aria-label="Droite">▶</button>
-      <button data-cmd="bas" aria-label="Descendre">▼</button>
-      <button data-cmd="chute" aria-label="Chute directe">⤓</button>
-    </div>
+    <aside class="panneau-lateral">
+      <div class="info-jeu" style="--c: var(--cyan)"><span class="lib">Suivante</span><canvas id="suivante" width="110" height="70" style="display:block;margin:0 auto;width:100%;max-width:110px;image-rendering:pixelated"></canvas></div>
+      <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
+      <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Lignes</span><span class="val" id="lignes">0</span></div>
+      <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Niveau</span><span class="val" id="niveau">0</span></div>
+      <ul class="salle" id="liste-salle" hidden></ul>
+    </aside>
+  </div>
+  <div class="commandes-tactiles">
+    <button data-cmd="gauche" aria-label="Gauche">◀</button>
+    <button data-cmd="tourner" aria-label="Tourner">⟳</button>
+    <button data-cmd="droite" aria-label="Droite">▶</button>
+    <button data-cmd="bas" aria-label="Descendre">▼</button>
+    <button data-cmd="chute" aria-label="Chute">⤓</button>
+  </div>
 
-    <section class="salle" id="salle" hidden>
-      <p class="titre-section">👥 Dans le lobby</p>
-      <ul id="liste-salle"></ul>
-    </section>
-
-    <div class="bas-jeu">
-      <button id="btn-quitter" class="lien">◀ Menu</button>
-      <p class="titre-section">🏆 Classement Tetris</p>
-      <div id="classement" class="zone-scores" style="--c: var(--jaune)"></div>
-      <p class="aide">Score : 100 / 300 / 500 / 800 points pour 1 / 2 / 3 / 4 lignes (× niveau), + 1 par case en descente rapide, + 2 en chute directe. Le niveau monte toutes les 10 lignes.</p>
+  <div class="modal" id="modal-classement" hidden>
+    <div class="modal-boite">
+      <div class="barre-ecran"><h2 class="titre">🏆 TETRIS</h2><button class="icone" data-fermer aria-label="Fermer">✕</button></div>
+      <div id="classement"></div>
     </div>
-  </main>
+  </div>
 
   <script src="../../lib/firebase-app-compat.js"></script>
   <script src="../../lib/firebase-database-compat.js"></script>
@@ -55,6 +55,7 @@
   <script src="../../jeux.js"></script>
   <script src="../../commun/scores.js"></script>
   <script src="../../commun/salle.js"></script>
+  <script src="../../commun/page.js"></script>
   <script src="tetris.js"></script>
 </body>
 </html>

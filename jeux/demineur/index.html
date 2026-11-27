@@ -2,31 +2,21 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Démineur — Rob</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../style.css" />
   <style>
-    body::before { opacity: 0.22; }
-    main { width: min(1060px, 100% - 1rem); }
-    .tete { display: flex; flex-direction: column; align-items: center; gap: 1rem; margin: 1.2rem 0; }
-    .tete h1 { font-size: clamp(1.2rem, 5vw, 2rem); margin: 0; }
-    .niveaux { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
+    .outils { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(10px, 2vh, 18px); padding: var(--marge) var(--marge) 0; }
+    .compteur { font: clamp(0.7rem, 2.2vh, 0.9rem) var(--pixel); color: var(--rouge); background: #000; padding: 0.45rem 0.6rem; border: 2px solid #3a1020; text-shadow: 0 0 8px var(--rouge); min-width: 4.4em; text-align: center; }
+    #btn-visage { --c: var(--jaune); font-size: clamp(1rem, 3vh, 1.4rem); }
+    #btn-drapeau { --c: var(--rose); }
+    .message-jeu { font: clamp(0.6rem, 1.8vh, 0.75rem) var(--pixel); min-width: 7em; text-align: center; }
+    .message-jeu.gagne { color: var(--vert); text-shadow: 0 0 8px var(--vert); }
+    .message-jeu.perdu { color: var(--rouge); text-shadow: 0 0 8px var(--rouge); }
 
-    .tableau-bord {
-      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-      width: 100%; max-width: 560px; margin: 0 auto 1rem;
-      font: 0.9rem var(--pixel);
-    }
-    .compteur { color: var(--rouge); background: #000; padding: 0.5rem 0.7rem; border: 2px solid #3a1020; text-shadow: 0 0 8px var(--rouge); min-width: 5.2em; text-align: center; }
-    #btn-visage { font-size: 1.6rem; line-height: 1; padding: 0.35rem 0.6rem; background: var(--nuit); color: inherit; --c: var(--jaune); }
-    #btn-drapeau { font-size: 0.6rem; }
-    #btn-drapeau.actif { background: var(--rose); --c: var(--rose); color: #fff; }
-
-    .zone-grille { overflow-x: auto; padding: 10px; margin: 0 auto; max-width: 100%; display: flex; }
     .grille-mines {
       --taille: 30px;
-      margin: 0 auto;
       display: grid;
       grid-template-columns: repeat(var(--cols), var(--taille));
       gap: 2px;
@@ -62,56 +52,49 @@
     .n7 { color: #fff; }
     .n8 { color: #9aa4c0; }
 
-    .message-jeu { text-align: center; font: 0.8rem/1.7 var(--pixel); min-height: 1.7em; margin: 1rem 0; }
-    .message-jeu.gagne { color: var(--vert); text-shadow: 0 0 8px var(--vert); }
-    .message-jeu.perdu { color: var(--rouge); text-shadow: 0 0 8px var(--rouge); }
 
-    .course { width: min(560px, 100%); margin: 0 auto; }
-    .course ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-    .course li { display: grid; grid-template-columns: 9em 1fr 6.5em; gap: 0.7rem; align-items: center; font-size: 1.2rem; }
+    .course { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; font-size: 1.1rem; min-height: 0; overflow: hidden; }
+    .course li { display: grid; grid-template-columns: 1fr auto; gap: 0.1rem 0.5rem; }
     .course .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .course .barre-prog { height: 14px; background: #1c1240; border: 2px solid var(--cyan); }
-    .course .barre-prog span { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .course li.moi .nom { color: var(--jaune); }
+    .course .etat { font: 0.5rem var(--pixel); align-self: center; }
+    .course .barre-prog { grid-column: 1 / -1; height: 8px; background: #1c1240; border: 1px solid var(--cyan); }
+    .course .barre-prog span { display: block; height: 100%; background: var(--cyan); }
     .course li.gagne .barre-prog span { background: var(--vert); }
     .course li.perdu .barre-prog span { background: var(--rouge); }
-    .course li.moi .nom { color: var(--jaune); }
-    .course .etat { text-align: right; font-family: var(--pixel); font-size: 0.55rem; }
-    .titre-section { font: 0.75rem var(--pixel); color: var(--jaune); text-transform: uppercase; text-align: center; margin: 2rem 0 1rem; }
-    .bas { display: flex; flex-direction: column; align-items: center; gap: 1rem; margin: 1.5rem 0; }
-    #classement { width: min(560px, 100%); }
+    @media (max-aspect-ratio: 1/1) {
+      .course { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.3rem 1rem; }
+      .course li { min-width: 120px; }
+    }
   </style>
 </head>
-<body>
-  <main>
-    <div class="tete">
-      <h1>DÉMINEUR</h1>
-      <div class="niveaux" id="niveaux"></div>
-      <p class="aide" id="info-mode"></p>
+<body class="page-jeu">
+  <header class="barre-jeu">
+    <button id="btn-quitter" class="icone" aria-label="Quitter" title="Menu">◀</button>
+    <h1 class="titre">DÉMINEUR</h1>
+    <button id="btn-classement" class="icone" style="--c: var(--jaune)" aria-label="Classement" title="Classement">🏆</button>
+  </header>
+
+  <div class="outils">
+    <div class="onglets" id="niveaux"></div>
+    <span class="compteur" id="mines-restantes" title="Mines">000</span>
+    <button id="btn-visage" class="icone" title="Nouvelle partie">🙂</button>
+    <span class="compteur" id="chrono" title="Temps">000</span>
+    <button id="btn-drapeau" class="icone" title="Drapeau">🚩</button>
+    <span class="message-jeu" id="message"></span>
+  </div>
+
+  <div class="corps-jeu">
+    <div class="zone-cadre"><div class="grille-mines" id="grille"></div></div>
+    <aside class="panneau-lateral" id="panneau"><ul class="course" id="liste-course" hidden></ul></aside>
+  </div>
+
+  <div class="modal" id="modal-classement" hidden>
+    <div class="modal-boite">
+      <div class="barre-ecran"><h2 class="titre">🏆 DÉMINEUR</h2><button class="icone" data-fermer aria-label="Fermer">✕</button></div>
+      <div id="classement"></div>
     </div>
-
-    <div class="tableau-bord">
-      <span class="compteur" id="mines-restantes" title="Mines restantes">000</span>
-      <button id="btn-visage" class="bouton" title="Nouvelle partie">🙂</button>
-      <span class="compteur" id="chrono" title="Temps">000</span>
-    </div>
-    <p class="centre"><button id="btn-drapeau" class="bouton petit">🚩 Mode drapeau : non</button></p>
-
-    <div class="zone-grille"><div class="grille-mines" id="grille"></div></div>
-    <p class="message-jeu" id="message"></p>
-
-    <section class="course" id="course" hidden>
-      <p class="titre-section">🏁 Course</p>
-      <ul id="liste-course"></ul>
-    </section>
-
-    <div class="bas">
-      <p class="aide">Clic : creuser · Clic droit, appui long ou mode drapeau : poser un drapeau · Clic sur un chiffre entouré de ses drapeaux : ouvre les cases autour.</p>
-      <button id="btn-quitter" class="lien">◀ Menu</button>
-      <p class="titre-section">🏆 Classement Démineur</p>
-      <div id="classement" class="zone-scores" style="--c: var(--jaune)"></div>
-      <p class="aide">Score d'une victoire : points du niveau × 60 / (60 + secondes) — Débutant 1000, Intermédiaire 3000, Expert 8000.</p>
-    </div>
-  </main>
+  </div>
 
   <script src="../../lib/firebase-app-compat.js"></script>
   <script src="../../lib/firebase-database-compat.js"></script>
@@ -119,6 +102,7 @@
   <script src="../../commun/reseau.js"></script>
   <script src="../../jeux.js"></script>
   <script src="../../commun/scores.js"></script>
+  <script src="../../commun/page.js"></script>
   <script src="demineur.js"></script>
 </body>
 </html>

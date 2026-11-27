@@ -8,11 +8,15 @@
   <link rel="stylesheet" href="../../style.css" />
 </head>
 <body class="page-jeu">
-  <main>
-    <div class="tete-jeu"><h1>SNAKE</h1></div>
+  <header class="barre-jeu">
+    <button id="btn-quitter" class="icone" aria-label="Quitter" title="Menu">◀</button>
+    <h1 class="titre">SNAKE</h1>
+    <button id="btn-classement" class="icone" style="--c: var(--jaune)" aria-label="Classement" title="Classement">🏆</button>
+  </header>
 
-    <div class="zone-jeu-arcade">
-      <div class="cadre-jeu" style="--c: var(--vert)">
+  <div class="corps-jeu">
+    <div class="zone-cadre">
+      <div class="cadre-jeu" id="terrain" data-ratio="480/480" style="--c: var(--vert)">
         <canvas id="ecran" width="480" height="480"></canvas>
         <div class="overlay" id="overlay">
           <h2 id="ov-titre"></h2>
@@ -20,29 +24,27 @@
           <button class="bouton" id="ov-bouton"></button>
         </div>
       </div>
-      <div class="panneau-lateral">
-        <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
-        <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Longueur</span><span class="val" id="longueur">0</span></div>
-        <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Vitesse</span><span class="val" id="vitesse">0</span></div>
-      </div>
     </div>
-    <div class="commandes-tactiles" style="max-width:220px">
-      <span style="width:64px"></span><button data-dir="0,-1" aria-label="Haut">▲</button><span style="width:64px"></span>
+    <aside class="panneau-lateral">
+      <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
+      <div class="info-jeu" style="--c: var(--vert)"><span class="lib">Taille</span><span class="val" id="longueur">0</span></div>
+      <div class="info-jeu" style="--c: var(--rose)"><span class="lib">Vitesse</span><span class="val" id="vitesse">0</span></div>
+      <ul class="salle" id="liste-salle" hidden></ul>
+    </aside>
+  </div>
+  <div class="commandes-tactiles">
+    <div class="croix">
+      <span></span><button data-dir="0,-1" aria-label="Haut">▲</button><span></span>
       <button data-dir="-1,0" aria-label="Gauche">◀</button><button data-dir="0,1" aria-label="Bas">▼</button><button data-dir="1,0" aria-label="Droite">▶</button>
     </div>
+  </div>
 
-    <section class="salle" id="salle" hidden>
-      <p class="titre-section">👥 Dans le lobby</p>
-      <ul id="liste-salle"></ul>
-    </section>
-
-    <div class="bas-jeu">
-      <button id="btn-quitter" class="lien">◀ Menu</button>
-      <p class="titre-section">🏆 Classement Snake</p>
-      <div id="classement" class="zone-scores" style="--c: var(--jaune)"></div>
-      <p class="aide">Score : 10 par fruit, 50 par fruit doré. Le serpent accélère à chaque fruit.</p>
+  <div class="modal" id="modal-classement" hidden>
+    <div class="modal-boite">
+      <div class="barre-ecran"><h2 class="titre">🏆 SNAKE</h2><button class="icone" data-fermer aria-label="Fermer">✕</button></div>
+      <div id="classement"></div>
     </div>
-  </main>
+  </div>
 
   <script src="../../lib/firebase-app-compat.js"></script>
   <script src="../../lib/firebase-database-compat.js"></script>
@@ -51,6 +53,7 @@
   <script src="../../jeux.js"></script>
   <script src="../../commun/scores.js"></script>
   <script src="../../commun/salle.js"></script>
+  <script src="../../commun/page.js"></script>
   <script src="snake.js"></script>
 </body>
 </html>

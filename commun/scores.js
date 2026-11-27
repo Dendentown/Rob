@@ -104,28 +104,37 @@
 
   // --- Afficher un tableau des scores dans un élément ---
   //   jeu = dossier du jeu, ou null pour le classement général
-  function tableau(el, data, jeu, maCle) {
-    if (data === null) { el.innerHTML = '<p class="message ko">Classements indisponibles pour le moment.</p>'; return; }
+  //   max = nombre de lignes affichées (+ ma ligne si je suis plus loin)
+  function tableau(el, data, jeu, maCle, max) {
+    max = max || 10;
+    if (data === null) { el.innerHTML = '<p class="vide-scores">—</p>'; return; }
     const general = !jeu;
     const lignes = general ? totaux(data) : classementJeu(data, jeu);
-    if (!lignes.length) {
-      el.innerHTML = '<p class="aide">Personne n\'a encore de score' + (general ? "." : " à ce jeu.") + "</p>";
-      return;
-    }
+    if (!lignes.length) { el.innerHTML = '<p class="vide-scores">—</p>'; return; }
+    let visibles = lignes.slice(0, max);
+    const moi = lignes.findIndex((l) => l.cle === maCle);
+    const separation = moi >= max;
+    if (separation) visibles = lignes.slice(0, max - 1);
     const table = document.createElement("table");
     table.className = "scores";
     table.innerHTML = general
-      ? "<thead><tr><th>Rang</th><th>Joueur</th><th>Score total</th><th>Jeux</th></tr></thead>"
-      : "<thead><tr><th>Rang</th><th>Joueur</th><th>Meilleur</th><th>Parties</th></tr></thead>";
+      ? "<thead><tr><th>#</th><th>Joueur</th><th>Total</th><th>Jeux</th></tr></thead>"
+      : "<thead><tr><th>#</th><th>Joueur</th><th>Record</th><th>Parties</th></tr></thead>";
     const tbody = document.createElement("tbody");
-    lignes.forEach((l) => {
+    const ligne = (l) => {
       const tr = document.createElement("tr");
       if (l.cle === maCle) tr.className = "moi";
       [rangTexte(l.rang), l.nom, general ? l.total : l.meilleur, general ? l.jeux : l.parties].forEach((v) => {
         const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
       });
       tbody.appendChild(tr);
-    });
+    };
+    visibles.forEach(ligne);
+    if (separation) {
+      const tr = document.createElement("tr"); tr.className = "separation";
+      tr.innerHTML = '<td colspan="4">⋮</td>'; tbody.appendChild(tr);
+      ligne(lignes[moi]);
+    }
     table.appendChild(tbody);
     el.replaceChildren(table);
   }

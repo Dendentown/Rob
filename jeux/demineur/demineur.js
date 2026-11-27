@@ -10,9 +10,9 @@
 (function () {
   const JEU = "demineur";
   const NIVEAUX = {
-    debutant:      { nom: "Débutant",      cols: 9,  rows: 9,  mines: 10, points: 1000 },
-    intermediaire: { nom: "Intermédiaire", cols: 16, rows: 16, mines: 40, points: 3000 },
-    expert:        { nom: "Expert",        cols: 30, rows: 16, mines: 99, points: 8000 },
+    debutant:      { nom: "Débutant",      court: "Facile",      cols: 9,  rows: 9,  mines: 10, points: 1000 },
+    intermediaire: { nom: "Intermédiaire", court: "Moyen", cols: 16, rows: 16, mines: 40, points: 3000 },
+    expert:        { nom: "Expert",        court: "Expert",        cols: 30, rows: 16, mines: 99, points: 8000 },
   };
   const scoreVictoire = (niv, secondes) => Math.round((NIVEAUX[niv].points * 60) / (60 + secondes));
 
@@ -118,13 +118,13 @@
     const s = secondes();
     const score = scoreVictoire(niveau, s);
     Scores.enregistrer(JEU, score, monPseudo()).catch(() => {});
-    dire(`VICTOIRE en ${s} s — score ${score}`, "gagne");
+    dire(`${s} s · ${score}`, "gagne");
   }
 
   function perdre(i) {
     etat = "perdu"; fin = Date.now(); caseBoum = i;
     Scores.enregistrer(JEU, 0, monPseudo()).catch(() => {}); // compte comme partie jouée
-    dire("BOUM ! " + (enLobby ? "Attends la prochaine manche." : "Clique sur 💀 pour rejouer."), "perdu");
+    dire("BOUM", "perdu");
   }
 
   // ---------- Clics ----------
@@ -166,16 +166,26 @@
   $("#btn-drapeau").addEventListener("click", () => {
     modeDrapeau = !modeDrapeau;
     $("#btn-drapeau").classList.toggle("actif", modeDrapeau);
-    $("#btn-drapeau").textContent = "🚩 Mode drapeau : " + (modeDrapeau ? "oui" : "non");
+    
   });
 
   // ---------- Affichage ----------
+  // Sur un écran en hauteur, une grille large (Expert 30×16) est affichée
+  // couchée (16×30) : même grille, simplement tournée.
+  const zone = document.querySelector(".zone-cadre");
+  let couchee = false;
+  const doitCoucher = () => C > L && zone.clientHeight > zone.clientWidth;
+
   function construireGrille() {
-    grilleEl.style.setProperty("--cols", C);
+    couchee = doitCoucher();
+    const DC = couchee ? L : C, DL = couchee ? C : L;
+    grilleEl.style.setProperty("--cols", DC);
     const boutons = [];
-    for (let i = 0; i < C * L; i++) {
+    for (let k = 0; k < C * L; k++) {
+      const dx = k % DC, dy = (k / DC) | 0;
+      const x = couchee ? dy : dx, y = couchee ? dx : dy;
       const b = document.createElement("button");
-      b.className = "case"; b.dataset.i = i; b.type = "button";
+      b.className = "case"; b.dataset.i = y * C + x; b.type = "button";
       boutons.push(b);
     }
     grilleEl.replaceChildren(...boutons);
@@ -184,17 +194,18 @@
   }
 
   function tailleCases() {
-    const dispo = Math.min(window.innerWidth, document.querySelector("main").clientWidth) - 40;
-    const t = Math.max(24, Math.min(34, Math.floor((dispo - 2 * (C - 1)) / C)));
+    const DC = couchee ? L : C, DL = couchee ? C : L;
+    const W = zone.clientWidth - 30, H = zone.clientHeight - 30;
+    const t = Math.max(14, Math.min(44, Math.floor(Math.min((W - 2 * DC) / DC, (H - 2 * DL) / DL))));
     grilleEl.style.setProperty("--taille", t + "px");
   }
-  addEventListener("resize", tailleCases);
+  addEventListener("resize", () => { if (C && doitCoucher() !== couchee) construireGrille(); else tailleCases(); });
 
   function dessiner() {
     const fini = etat === "gagne" || etat === "perdu";
     const cases = grilleEl.children;
-    for (let i = 0; i < cases.length; i++) {
-      const b = cases[i];
+    for (let k = 0; k < cases.length; k++) {
+      const b = cases[k], i = +b.dataset.i;
       let cls = "case", txt = "";
       if (ouverte[i]) {
         cls += " ouverte";
@@ -233,8 +244,8 @@
     const peutChoisir = !enLobby || estHote;
     $("#niveaux").replaceChildren(...Object.entries(NIVEAUX).map(([id, n]) => {
       const b = document.createElement("button");
-      b.className = "filtre" + (id === niveau ? " actif" : "");
-      b.textContent = n.nom + " · " + n.cols + "×" + n.rows;
+      b.className = "onglet" + (id === niveau ? " actif" : "");
+      b.textContent = n.court;
       b.disabled = !peutChoisir;
       b.addEventListener("click", () => { if (enLobby) lancerManche(id); else nouvellePartieSolo(id); });
       return b;
@@ -271,7 +282,7 @@
     preparer(m.niveau);
     minesGraine(m.graine);
     etat = "jeu"; debut = Date.now(); // le chrono démarre pour tout le monde en même temps
-    dire("C'est parti ! Commence par la case qui clignote.");
+    dire("");
     afficherNiveaux();
     dessiner();
     publierProgression();
@@ -289,7 +300,7 @@
 
   function afficherCourse() {
     if (!enLobby) return;
-    $("#course").hidden = false;
+    $("#liste-course").hidden = false;
     const lignes = joueursLobby.map(([id, j]) => {
       const p = progression[id];
       const ok = p && p.manche === mancheId;
@@ -304,7 +315,7 @@
       const etatTxt = l.etat === "gagne" ? `${++place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : "✔"} ${l.temps} s`
         : l.etat === "perdu" ? "💥" : l.pct + " %";
       li.innerHTML = `<span class="nom"></span><span class="barre-prog"><span style="width:${l.etat === "gagne" ? 100 : l.pct}%"></span></span><span class="etat"></span>`;
-      li.querySelector(".nom").textContent = l.nom + (l.id === session.id ? " (toi)" : "");
+      li.querySelector(".nom").textContent = l.nom;
       li.querySelector(".etat").textContent = etatTxt;
       return li;
     }));
@@ -332,21 +343,18 @@
       if (premier) {
         premier = false;
         if (estHote) {
-          $("#btn-quitter").textContent = "◀ Retour au lobby (tout le monde)";
+          $("#btn-quitter").title = "Retour au lobby (tout le monde)";
           $("#btn-quitter").onclick = () => lobbyRef.child("lancement").remove();
         } else {
-          $("#btn-quitter").textContent = "◀ Retour au lobby";
+          $("#btn-quitter").title = "Retour au lobby";
           $("#btn-quitter").onclick = allerAuMenu;
         }
         if (!mancheId) {
           preparer("debutant");
           etat = "attente";
-          dire(estHote ? "Choisis un niveau pour lancer la course." : "En attente de l'hôte…");
+          dire(estHote ? "" : "EN ATTENTE…");
         }
       }
-      $("#info-mode").textContent = estHote
-        ? "Course : choisis le niveau, tout le lobby reçoit la même grille. 🙂 relance une manche."
-        : "Course : l'hôte choisit le niveau. Même grille pour tout le monde !";
       afficherNiveaux();
       afficherCourse();
     });
@@ -354,7 +362,7 @@
 
   function demarrerSolo() {
     enLobby = false;
-    $("#info-mode").textContent = "Partie solo — le premier clic n'est jamais une mine.";
+    $("#panneau").hidden = true;
     $("#btn-quitter").onclick = () => { location.href = Reseau.racine; };
     nouvellePartieSolo("debutant");
   }

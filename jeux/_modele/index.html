@@ -2,43 +2,40 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nouveau jeu — Rob</title>
-  <link rel="stylesheet" href="../../style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Modèle — Rob</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
-  <style>
-    .zone-jeu {
-      --c: var(--cyan);
-      background: rgba(5, 1, 15, 0.9);
-      padding: 2rem;
-      min-height: 50vh;
-      margin-top: 2rem;
-      display: flex; flex-direction: column; align-items: center; gap: 1rem;
-      text-align: center;
-    }
-    .zone-jeu h2 { font: 1rem/1.6 var(--pixel); color: var(--rose); text-shadow: var(--halo-rose); }
-    .joueurs { max-width: 420px; }
-    [hidden] { display: none !important; }
-  </style>
+  <link rel="stylesheet" href="../../style.css" />
 </head>
-<body>
-  <main>
-    <div class="zone-jeu">
-      <h2>Nouveau jeu</h2>
-      <p class="aide">Modèle : copie ce dossier pour commencer un nouveau mini-jeu.</p>
-      <p>Lobby <strong id="code"></strong> — <span id="role"></span></p>
-      <ul class="joueurs" id="liste-joueurs"></ul>
+<body class="page-jeu">
+  <header class="barre-jeu">
+    <button id="btn-quitter" class="icone" aria-label="Quitter" title="Menu">◀</button>
+    <h1 class="titre">MODÈLE</h1>
+    <button id="btn-classement" class="icone" style="--c: var(--jaune)" aria-label="Classement" title="Classement">🏆</button>
+  </header>
 
-      <!-- Le jeu se construit ici -->
-
-      <p id="message" class="message" role="status"></p>
-
-      <!-- Tableau des scores de ce jeu (mis à jour en direct) -->
-      <h2>🏆 Classement</h2>
-      <div id="classement" class="zone-scores" style="--c: var(--jaune); max-width: 560px"></div>
-      <button id="btn-retour" class="bouton" hidden>◀ Retour au lobby (tout le monde)</button>
+  <div class="corps-jeu">
+    <div class="zone-cadre">
+      <div class="cadre-jeu" id="terrain" data-ratio="480/480" style="--c: var(--cyan)">
+        <canvas id="ecran" width="480" height="480"></canvas>
+        <div class="overlay" id="overlay">
+          <h2 id="ov-titre"></h2>
+          <p id="ov-texte"></p>
+          <button class="bouton" id="ov-bouton"></button>
+        </div>
+      </div>
     </div>
-  </main>
+    <aside class="panneau-lateral">
+      <div class="info-jeu" style="--c: var(--jaune)"><span class="lib">Score</span><span class="val" id="score">0</span></div>
+      <ul class="salle" id="liste-salle" hidden></ul>
+    </aside>
+  </div>
+  <div class="modal" id="modal-classement" hidden>
+    <div class="modal-boite">
+      <div class="barre-ecran"><h2 class="titre">🏆 MODÈLE</h2><button class="icone" data-fermer aria-label="Fermer">✕</button></div>
+      <div id="classement"></div>
+    </div>
+  </div>
 
   <script src="../../lib/firebase-app-compat.js"></script>
   <script src="../../lib/firebase-database-compat.js"></script>
@@ -46,60 +43,8 @@
   <script src="../../commun/reseau.js"></script>
   <script src="../../jeux.js"></script>
   <script src="../../commun/scores.js"></script>
-  <script>
-    // ⚠ Nom du dossier de ce jeu (le même que dans jeux.js)
-    const JEU = "_modele";
-
-    /* Les joueurs arrivent ici depuis le lobby : ils sont déjà connectés.
-       - s.code, s.id, s.nom : le lobby et moi
-       - v.hote : l'id de l'hôte (c'est lui qui pilote la partie)
-       - ref    : games/<CODE> dans Firebase — on peut y ranger l'état du jeu,
-                  ex. ref.child("partie/question").set(...)
-       - fin de partie : Scores.enregistrer(JEU, score)          → mon score
-                         Scores.enregistrer(JEU, score, "Léa")   → le score d'un joueur
-                         (le classement et le score total se mettent à jour tout seuls) */
-    const $ = (x) => document.querySelector(x);
-    const s = Reseau.session.lire();
-    let parti = false; // on ne quitte la page qu'une fois
-    const menu = () => { if (parti) return; parti = true; location.href = Reseau.racine; };
-
-    if (!s) {
-      $("#message").textContent = "Pas de lobby : retour au menu…";
-      setTimeout(menu, 1500);
-    } else {
-      Reseau.reprendre(s).then(() => {
-        const ref = Reseau.lobby(s.code);
-        let lanceVu = false;
-        $("#code").textContent = s.code;
-
-        ref.on("value", (snap) => {
-          const v = snap.val();
-          if (!v) { Reseau.session.effacer(); menu(); return; }        // lobby fermé
-          if (v.lancement) lanceVu = true;
-          else if (lanceVu) { Reseau.garderPresence(s); menu(); return; } // l'hôte a ramené tout le monde au lobby
-
-          const hote = v.hote === s.id;
-          $("#role").textContent = hote ? "tu es l'hôte ★" : "invité";
-          $("#btn-retour").hidden = !hote;
-          const joueurs = Object.entries(v.joueurs || {}).sort((a, b) => (a[1].arrivee || 0) - (b[1].arrivee || 0));
-          $("#liste-joueurs").replaceChildren(...joueurs.map(([id, j]) => {
-            const li = document.createElement("li");
-            if (id === v.hote) li.className = "hote";
-            li.textContent = (id === v.hote ? "★ " : "") + j.nom + (id === s.id ? " (toi)" : "");
-            return li;
-          }));
-        });
-
-        // Classement de ce jeu, en direct
-        Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(s.nom)));
-
-        // L'hôte termine la partie : tout le monde revient dans le lobby
-        $("#btn-retour").addEventListener("click", () => ref.child("lancement").remove());
-      }).catch(() => {
-        $("#message").textContent = "Ce lobby n'existe plus : retour au menu…";
-        setTimeout(menu, 1500);
-      });
-    }
-  </script>
+  <script src="../../commun/salle.js"></script>
+  <script src="../../commun/page.js"></script>
+  <script src="modele.js"></script>
 </body>
 </html>

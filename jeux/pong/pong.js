@@ -170,7 +170,7 @@
     // raquettes
     S.y1 = monY;
     if (mode === "hote" && !S.bot) {
-      if (!adversairePresent() && S.phase !== "fin") { S.bot = true; message("Adversaire déconnecté : le bot prend le relais"); }
+      if (!adversairePresent() && S.phase !== "fin") { S.bot = true; message("BOT"); }
       const pas = 3000 * dt;
       S.y2 = borne(S.y2 + borne(y2Distant - S.y2, -pas, pas), PH / 2, H - PH / 2);
     } else {
@@ -284,12 +284,12 @@
   function message(t) { messageTemp = t; messageJusqua = performance.now() + 3000; }
   function majBarre(v, maintenant) {
     const bot = v ? v.bot : true;
-    $("#nom1").textContent = (nomJ1 || "—") + (mode === "solo" || mode === "hote" ? " (toi)" : "");
-    $("#nom2").textContent = bot ? "🤖 BOT" : (nomJ2 || "—") + (mode === "invite" ? " (toi)" : "");
+    $("#nom1").textContent = nomJ1 || "—";
+    $("#nom2").textContent = bot ? "🤖 BOT" : nomJ2 || "—";
     let t;
     if (maintenant < messageJusqua) t = messageTemp;
-    else if (v && v.phase === "jeu") t = "Vitesse ×" + (1 + K * Math.log(1 + v.echange)).toFixed(1) + " · échange " + v.echange;
-    else t = mode === "spectateur" ? "Spectateur" : bot ? "Contre le bot" : "1 contre 1";
+    else if (v && v.phase === "jeu") t = "×" + (1 + K * Math.log(1 + v.echange)).toFixed(1);
+    else t = mode === "spectateur" ? "👀" : bot ? "BOT" : "1V1";
     $("#mode").textContent = t;
   }
 
@@ -319,37 +319,35 @@
     menuAffiche = cle;
     const boutons = [];
     if (mode === "hote" && adversaireId) {
-      boutons.push([humain ? "Jouer contre " + nomJ2 : "En attente de " + (nomJ2 || "l'adversaire") + "…", () => { menuAffiche = ""; nouvellePartie(); }, !humain]);
-      boutons.push(["Contre le bot", () => { menuAffiche = ""; nouvellePartie(); S.bot = true; }]);
+      boutons.push([humain ? "VS " + nomJ2 : nomJ2 + "…", () => { menuAffiche = ""; nouvellePartie(); }, !humain]);
+      boutons.push(["VS 🤖", () => { menuAffiche = ""; nouvellePartie(); S.bot = true; }]);
     } else {
       boutons.push([fin ? "Rejouer" : "Jouer", () => { menuAffiche = ""; nouvellePartie(); }]);
     }
     if (fin) {
       const gagne = S.gagnant === 1;
-      afficherOverlay(gagne ? "VICTOIRE !" : "PERDU…",
-        `${S.s1} – ${S.s2} · ton score : ${scorePartie(S.s1, S.meilleur)} (plus long échange : ${S.meilleur})`, boutons);
+      afficherOverlay(gagne ? "VICTOIRE !" : "PERDU", `${S.s1} – ${S.s2} · ${scorePartie(S.s1, S.meilleur)}`, boutons);
     } else {
-      afficherOverlay("PONG", "Premier à " + POINTS_VICTOIRE + " points. La balle accélère à chaque renvoi.", boutons);
+      afficherOverlay("PONG", "", boutons);
     }
   }
 
   // Écran de l'invité / du spectateur
   function menuDistant(v) {
     if (!v || v.phase === "menu") {
-      afficherOverlay("PONG", mode === "invite" ? "En attente de l'hôte (" + (nomJ1 || "★") + ")…" : "En attente du début de la partie…");
+      afficherOverlay("PONG", "EN ATTENTE…");
       return;
     }
     if (v.phase === "fin") {
       if (mode === "invite" && !v.bot) {
         const gagne = v.gagnant === 2;
-        afficherOverlay(gagne ? "VICTOIRE !" : "PERDU…",
-          `${v.s2} – ${v.s1} · ton score : ${scorePartie(v.s2, v.meilleur)} — l'hôte peut relancer une partie.`);
+        afficherOverlay(gagne ? "VICTOIRE !" : "PERDU", `${v.s2} – ${v.s1} · ${scorePartie(v.s2, v.meilleur)}`);
       } else {
         afficherOverlay("FIN", `${nomJ1} ${v.s1} – ${v.s2} ${v.bot ? "BOT" : nomJ2}`);
       }
       return;
     }
-    if (mode === "invite" && v.bot) { afficherOverlay("PONG", "L'hôte joue contre le bot. Attends la prochaine partie !"); return; }
+    if (mode === "invite" && v.bot) { afficherOverlay("PONG", "EN ATTENTE…"); return; }
     cacherOverlay();
   }
 
@@ -416,7 +414,7 @@
   function demarrerSolo() {
     mode = "solo";
     nomJ1 = monPseudo();
-    $("#btn-quitter").textContent = "◀ Menu";
+    $("#btn-quitter").title = "Menu";
     $("#btn-quitter").onclick = quitterVersMenu;
   }
 
@@ -449,13 +447,13 @@
             const r = s.val();
             if (r && typeof r.y === "number") { y2Distant = r.y; vuAdversaire = performance.now(); }
           });
-          $("#btn-quitter").textContent = "◀ Retour au lobby (tout le monde)";
+          $("#btn-quitter").title = "Retour au lobby (tout le monde)";
           $("#btn-quitter").onclick = () => lobbyRef.child("lancement").remove();
         } else {
           etatRef.on("value", (s) => { R = s.val(); recuA = performance.now(); });
-          $("#btn-quitter").textContent = "◀ Retour au lobby";
+          $("#btn-quitter").title = "Retour au lobby";
           $("#btn-quitter").onclick = allerAuMenu;
-          if (mode === "spectateur") $("#aide").textContent = "Tu regardes la partie.";
+          
         }
       }
     });

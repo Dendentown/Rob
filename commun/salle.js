@@ -29,7 +29,7 @@
     jeu = nomJeu;
     const quitter = $("#btn-quitter");
     if (!session) {
-      if (quitter) { quitter.textContent = "◀ Menu"; quitter.onclick = () => { location.href = Reseau.racine; }; }
+      if (quitter) { quitter.title = "Menu"; quitter.onclick = () => { location.href = Reseau.racine; }; }
       return Promise.resolve({ enLobby: false });
     }
     return Reseau.reprendre(session).then(() => {
@@ -50,10 +50,10 @@
           premier = false;
           if (quitter) {
             if (v.hote === session.id) {
-              quitter.textContent = "◀ Retour au lobby (tout le monde)";
+              quitter.title = "Retour au lobby (tout le monde)";
               quitter.onclick = () => lobbyRef.child("lancement").remove();
             } else {
-              quitter.textContent = "◀ Retour au lobby";
+              quitter.title = "Retour au lobby";
               quitter.onclick = allerAuMenu;
             }
           }
@@ -78,7 +78,7 @@
   }
 
   function afficher(hote) {
-    const panneau = $("#salle");
+    const panneau = $("#liste-salle");
     if (!panneau) return;
     panneau.hidden = false;
     const lignes = joueursLobby.map(([id, j]) => {
@@ -88,11 +88,9 @@
     $("#liste-salle").replaceChildren(...lignes.map((l) => {
       const li = document.createElement("li");
       li.className = (l.id === session.id ? "moi " : "") + (l.etat === "fini" ? "perdu" : "");
-      const etat = l.etat === "jeu" ? "▶ " + l.score : l.etat === "fini" ? "GAME OVER" : "…";
-      li.innerHTML = '<span class="nom"></span><span class="etat-salle"></span><span class="record"></span>';
-      li.querySelector(".nom").textContent = (l.id === hote ? "★ " : "") + l.nom + (l.id === session.id ? " (toi)" : "");
-      li.querySelector(".etat-salle").textContent = etat;
-      li.querySelector(".record").textContent = "🏆 " + l.record;
+      li.innerHTML = '<span class="nom"></span><span class="val-salle"></span>';
+      li.querySelector(".nom").textContent = (l.id === hote ? "★ " : "") + l.nom;
+      li.querySelector(".val-salle").textContent = l.etat === "jeu" ? l.score : "🏆" + l.record;
       return li;
     }));
   }

@@ -116,7 +116,7 @@
     etat = "fini";
     Salle.publier(score, "fini");
     Scores.enregistrer(JEU, score, Salle.pseudo()).catch(() => {});
-    afficherOverlay("GAME OVER", `Score ${score} · ${lignes} lignes · niveau ${niveau}`, "Rejouer");
+    afficherOverlay("GAME OVER", String(score), "Rejouer");
   }
 
   // ---------- Commandes ----------
@@ -132,7 +132,7 @@
       arrowup: () => rotation(1), x: () => rotation(1), w: () => rotation(-1), z: () => rotation(1),
       arrowdown: () => descendre(true), s: () => descendre(true),
       " ": () => chuteDirecte(),
-      p: () => { pause = !pause; if (pause) afficherOverlay("PAUSE", "Appuie sur P pour reprendre"); else cacherOverlay(); },
+      p: () => { pause = !pause; if (pause) afficherOverlay("PAUSE", ""); else cacherOverlay(); },
     };
     if (actions[k]) { e.preventDefault(); actions[k](); }
   });
@@ -223,6 +223,6 @@
 
   Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(Salle.pseudo())));
   Salle.demarrer(JEU);
-  afficherOverlay("TETRIS", "← → déplacer · ↑ tourner · ↓ descendre · Espace : chute · P : pause", "Jouer");
+  afficherOverlay("TETRIS", "", "Jouer");
   requestAnimationFrame(boucle);
 })();

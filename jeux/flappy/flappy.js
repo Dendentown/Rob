@@ -96,7 +96,7 @@
     oiseau.v = Math.max(oiseau.v, 0);
     Salle.publier(score, "fini");
     Scores.enregistrer(JEU, score, Salle.pseudo()).catch(() => {});
-    setTimeout(() => afficherOverlay("GAME OVER", `Score ${score}`, "Rejouer"), 700);
+    setTimeout(() => afficherOverlay("GAME OVER", String(score), "Rejouer"), 700);
   }
 
   // ---------- Commandes ----------
@@ -176,7 +176,7 @@
     }
     if (etat === "pret") {
       ctx.font = "14px 'Press Start 2P', monospace"; ctx.fillStyle = "#19f0ff";
-      ctx.fillText((performance.now() / 400) % 2 < 1 ? "TAPE POUR VOLER" : "", W / 2, H / 2 + 30);
+      ctx.fillText((performance.now() / 400) % 2 < 1 ? "PRÊT ?" : "", W / 2, H / 2 + 30);
     }
     if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash})`; ctx.fillRect(0, 0, W, H); }
     $("#score").textContent = score || 0;
@@ -208,6 +208,6 @@
   preparer();
   Scores.ecouter((data) => Scores.tableau($("#classement"), data, JEU, Scores.cle(Salle.pseudo())));
   Salle.demarrer(JEU);
-  afficherOverlay("FLAPPY BIRD", "Clic, tap ou Espace pour battre des ailes", "Jouer");
+  afficherOverlay("FLAPPY BIRD", "", "Jouer");
   requestAnimationFrame(boucle);
 })();
