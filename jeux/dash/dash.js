@@ -7,6 +7,8 @@
    Parcours généré au hasard (voir moteur.js), obstacles serrés :
    montées, descentes, trous, plafonds à piques, tunnels, plateformes,
    tremplins, anneaux, doubles chemins, parties À L'ENVERS (au plafond),
+   passages en VAISSEAU (triangle : appuyer = monter, relâcher = descendre ;
+   scies volantes, cubes en lévitation, couloirs serrés, portes laser, zigzags),
    et des pièges animés :
    cubes qui tombent, ascenseurs, dalles qui s'effondrent, portails de
    gravité, tapis roulants, murs à rebond, lasers alternés, pendules,
@@ -321,6 +323,19 @@
     ctx.restore();
   }
 
+  // le vaisseau : un triangle néon pointé vers l'avant, avec une flamme quand on monte
+  function dessinerVaisseau(x, y, rot, couleur, alpha, monte) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x + U / 2, y + U / 2); ctx.rotate(rot);
+    if (monte) { ctx.fillStyle = "#ff8a1f"; ctx.beginPath(); ctx.moveTo(-U / 2, -6); ctx.lineTo(-U / 2 - 10 - Math.random() * 6, 0); ctx.lineTo(-U / 2, 6); ctx.fill(); }
+    ctx.fillStyle = couleur; ctx.shadowColor = couleur; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.moveTo(U / 2 + 4, 0); ctx.lineTo(-U / 2, -U / 2 + 2); ctx.lineTo(-U / 2, U / 2 - 2); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "#05010f"; ctx.beginPath(); ctx.moveTo(U / 2 - 6, 0); ctx.lineTo(-U / 2 + 4, -U / 2 + 9); ctx.lineTo(-U / 2 + 4, U / 2 - 9); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffe14d"; ctx.fillRect(-4, -3, 6, 6);
+    ctx.restore();
+  }
+
   function texte(t, x, y, taille, c, align) {
     ctx.font = taille + "px 'Press Start 2P', monospace"; ctx.textAlign = align || "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 8; ctx.fillText(t, x, y); ctx.shadowBlur = 0;
@@ -458,11 +473,11 @@
     });
     monde.portails.forEach((o) => {
       if (!visible(o)) return;
-      const X = versEcran(o.x), c = o.grav < 0 ? "#ffe14d" : "#19f0ff";
+      const X = versEcran(o.x), c = o.mode === "vaisseau" ? "#3dff7a" : o.mode === "cube" ? "#ff2bd6" : o.grav < 0 ? "#ffe14d" : "#19f0ff";
       ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 18; ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t / 100);
       ctx.fillRect(X - 6, o.haut, 12, o.bas - o.haut); ctx.globalAlpha = 1;
       ctx.fillRect(X - 1, o.haut, 2, o.bas - o.haut); ctx.shadowBlur = 0;
-      texte(o.grav < 0 ? "▲" : "▼", X, (o.haut + o.bas) / 2, 12, c);
+      texte(o.mode === "vaisseau" ? "▶" : o.mode === "cube" ? "■" : o.grav < 0 ? "▲" : "▼", X, (o.haut + o.bas) / 2, 12, c);
     });
     monde.lasers.forEach((o) => {
       if (o.detruit || !visible(o)) return;
@@ -475,6 +490,17 @@
         ctx.fillStyle = "rgba(255,59,59,0.25)";
         for (let y = o.y1; y < o.y2; y += 8) ctx.fillRect(X + o.w / 2 - 1, y, 2, 4);
       }
+    });
+    monde.scies.forEach((o) => {
+      if (o.detruit || !visible(o)) return;
+      const X = versEcran(o.x), y = M.yScie(o, tj);
+      ctx.strokeStyle = "rgba(255,43,214,0.2)"; ctx.setLineDash([3, 6]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(X, o.yc - o.amp); ctx.lineTo(X, o.yc + o.amp); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#ff2bd6"; ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 14;
+      ctx.beginPath();
+      for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2 + tj * 6, r = k % 2 ? o.r : o.r + 6; ctx.lineTo(X + Math.cos(a) * r, y + Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#05010f"; ctx.beginPath(); ctx.arc(X, y, o.r - 6, 0, Math.PI * 2); ctx.fill();
     });
     monde.pendules.forEach((o) => {
       if (o.detruit || Math.abs(o.x - j.x) > W + o.L) return;
@@ -555,7 +581,8 @@
     // mon cube
     {
       const clignote = (j.stun > 0 || j.inv > 0) && (t / 80) % 2 < 1;
-      dessinerCube(X_CUBE, j.y, j.stun > 0 ? j.rot + t / 60 : j.rot, j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur], clignote ? 0.4 : 1);
+      if (j.mode === "vaisseau") dessinerVaisseau(X_CUBE, j.y, j.rot, j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur], clignote ? 0.4 : 1, appui);
+      else dessinerCube(X_CUBE, j.y, j.stun > 0 ? j.rot + t / 60 : j.rot, j.boost > 0 ? "#ff8a1f" : COULEURS[maCouleur], clignote ? 0.4 : 1);
       if (j.bouclier) { ctx.strokeStyle = "#3dff7a"; ctx.lineWidth = 2; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(X_CUBE + U / 2, j.y + U / 2, 26, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0; }
       if (j.lent > 0) texte("~", X_CUBE + U / 2, j.y - 12, 14, "#b388ff");
     }

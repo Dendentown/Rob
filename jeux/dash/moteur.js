@@ -42,7 +42,7 @@
     options = options || {};
     const m = {
       rects: [], piques: [], tremplins: [], anneaux: [], boites: [], flaques: [], reperes: [],
-      tombants: [], mobiles: [], fragiles: [], portails: [], tapis: [], lasers: [], pendules: [], portes: [], boutons: [], bulles: [], sombres: [],
+      tombants: [], mobiles: [], fragiles: [], portails: [], tapis: [], lasers: [], pendules: [], portes: [], boutons: [], bulles: [], sombres: [], scies: [],
       fin: options.longueur ? options.longueur * U : Infinity,
       alea: mulberry32(graine >>> 0), xGen: 0, g: 0, id: 0, course: !!options.course,
     };
@@ -56,7 +56,7 @@
   const MIROIR = H;
   function solHaut(m, x1, x2, g) { const yb = MIROIR - yDe(g); m.rects.push({ id: m.id++, x: x1, y: -300, w: x2 - x1, h: yb + 300, type: "sol", haut: true }); }
   const ENVERS_OK = ["piques", "blocs", "montee", "descente", "trou", "multi-trous", "escalier", "plafond-piques", "tunnel", "etroit", "slalom", "plateformes", "zigzag", "double", "trois-niveaux", "souterrain"];
-  function mondeTemp(m) { return { rects: [], piques: [], boites: [], tremplins: [], anneaux: [], tombants: [], mobiles: [], fragiles: [], portails: [], tapis: [], lasers: [], pendules: [], portes: [], boutons: [], bulles: [], sombres: [], id: m.id }; }
+  function mondeTemp(m) { const t = { id: m.id }; LISTES.forEach((k) => (t[k] = [])); return t; }
   function retourner(m, tm) {
     m.id = tm.id;
     tm.rects.forEach((r) => {
@@ -408,6 +408,60 @@
       bloc(m, x + 13 * U, g + 1); pique(m, x + 17 * U, yDe(g));
       return { l, g };
     } },
+    { nom: "vaisseau", min: 350, poids: 4, f(m, x, g, a) {
+      // le cube devient un VAISSEAU (triangle) : appuyer = monter, relâcher = descendre.
+      // Couloir entre sol et plafond : scies qui flottent, cubes en lévitation, passages serrés,
+      // portes laser, zigzags.
+      const sol0 = yDe(g), haut = sol0 - 8 * U, milieu = sol0 - 4 * U - U / 2;
+      const yN = (n) => sol0 - n * U; // hauteur n (en blocs) au-dessus du sol du couloir
+      const fixe = (x1, w, n1, n2) => m.rects.push({ id: m.id++, x: x1, y: yN(n2), w, h: (n2 - n1) * U, type: "bloc", fixe: true });
+      m.portails.push({ id: m.id++, x: x + 3 * U, haut, bas: sol0, mode: "vaisseau" });
+      let cx = x + 7 * U;
+      const types = ["scies", "cubes", "serre", "lasers", "zigzag"];
+      const n = 4 + ((a() * 2) | 0);
+      let precedent = "";
+      for (let k = 0; k < n; k++) {
+        let t = types[(a() * types.length) | 0];
+        if (t === precedent) t = types[(types.indexOf(t) + 1) % types.length];
+        precedent = t;
+        m.reperes.push({ x: cx, g, nom: "vaisseau-" + t, mode: "vaisseau", yv: milieu });
+        if (t === "scies") {
+          for (let i = 0; i < 3; i++) m.scies.push({ id: m.id++, x: cx + (3 + i * 4.5) * U, yc: yN(4), amp: 2.6 * U, P: 1.6 + a() * 0.8, ph: a() * 6.283, r: 14 });
+          cx += 16 * U;
+        } else if (t === "cubes") {
+          for (let i = 0; i < 4; i++) {
+            const bas = a() < 0.5;
+            if (bas) fixe(cx + (2 + i * 4) * U, U * (a() < 0.4 ? 2 : 1), 0, 2.5 + a() * 1.5);
+            else fixe(cx + (2 + i * 4) * U, U * (a() < 0.4 ? 2 : 1), 3.5 + a() * 1.5, 8);
+          }
+          cx += 18 * U;
+        } else if (t === "serre" || t === "zigzag") {
+          // couloir étroit (3 blocs de haut) dont le centre monte et descend
+          const pas = 3, nb = t === "zigzag" ? 8 : 6;
+          let c = 4;
+          for (let i = 0; i < nb; i++) {
+            if (t === "zigzag") c = [2.5, 3.5, 4.5, 5.5, 5.5, 4.5, 3.5, 2.5][i];
+            else c = Math.max(2.5, Math.min(5.5, c + (a() < 0.5 ? -1 : 1)));
+            fixe(cx + (1 + i * pas) * U, pas * U, 0, c - 1.5);
+            fixe(cx + (1 + i * pas) * U, pas * U, c + 1.5, 8);
+          }
+          cx += (2 + nb * pas) * U;
+        } else {
+          const ph = a() * 6.283;
+          [3, 10].forEach((i, q) => {
+            const f = ph + q * 1.9;
+            m.lasers.push({ id: m.id++, x: cx + i * U + 12, w: 6, y1: yN(4), y2: sol0, P: 1.5, ph: f });
+            m.lasers.push({ id: m.id++, x: cx + i * U + 12, w: 6, y1: haut, y2: yN(4.6), P: 1.5, ph: f + Math.PI });
+          });
+          cx += 14 * U;
+        }
+      }
+      m.portails.push({ id: m.id++, x: cx + 2 * U, haut, bas: sol0, mode: "cube" });
+      const l = Math.ceil((cx - x) / U) + 6;
+      sol(m, x, x + l * U, g);
+      plafond(m, x + 3 * U, cx + 3 * U, haut);
+      return { l, g };
+    } },
     { nom: "tremplin", min: 450, poids: 3, f(m, x, g, a) {
       const r = a();
       if (g === 0 && r < 0.25) {
@@ -478,7 +532,10 @@
       for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
       // il y a TOUJOURS au moins une partie à l'envers : si le hasard ne l'a pas encore amenée, on l'impose
       if (!envers && !m.dejaEnvers && d >= 280) choix = MORCEAUX.find((c) => c.nom === "envers") || choix;
+      // … et toujours au moins un passage en vaisseau
+      if (!envers && !m.dejaVaisseau && m.dejaEnvers && d >= 550 && choix.nom !== "envers") choix = MORCEAUX.find((c) => c.nom === "vaisseau") || choix;
       if (choix.nom === "envers") m.dejaEnvers = true;
+      if (choix.nom === "vaisseau") m.dejaVaisseau = true;
       m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
       const tm = envers ? mondeTemp(m) : m;
       const debut = tm.rects.length;
@@ -512,7 +569,7 @@
     }
   }
 
-  const LISTES = ["rects", "piques", "tremplins", "anneaux", "boites", "flaques", "tombants", "mobiles", "fragiles", "portails", "tapis", "lasers", "pendules", "portes", "boutons", "bulles", "sombres"];
+  const LISTES = ["rects", "piques", "tremplins", "anneaux", "boites", "flaques", "tombants", "mobiles", "fragiles", "portails", "tapis", "lasers", "pendules", "portes", "boutons", "bulles", "sombres", "scies"];
 
   // Oublie ce qui est loin derrière (le mode infini ne grossit pas sans fin)
   function nettoyer(m, xMin) {
@@ -528,9 +585,10 @@
   //   trou          → on repart du dernier point de reprise (temps perdu)
   // La vitesse remonte toute seule (accélération), jusqu'à la vitesse de croisière.
   const ACCEL = 520;
+  const VAISSEAU_MONTE = 1900, VAISSEAU_DESCEND = 1500, VAISSEAU_VMAX = 380;
   function nouveauJoueur() {
     return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0,
-      anneaux: [], flaques: [], boites: [], t: 0, recul: 0, grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
+      anneaux: [], flaques: [], boites: [], t: 0, recul: 0, mode: "cube", grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
   }
   // copie indépendante (pour les simulations)
   function copier(j) {
@@ -545,7 +603,8 @@
     placer(j, r);
   }
   function placer(j, r) { // à l'arrêt sur un point de reprise (au plafond si on est dans une partie à l'envers)
-    Object.assign(j, { x: r.x + 2, y: r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, vy: 0, v: 0, sol: true, rot: 0, tenu: false, croc: null, recul: 0, grav: r.inv ? -1 : 1,
+    Object.assign(j, { x: r.x + 2, y: r.mode === "vaisseau" ? r.yv : r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, mode: r.mode || "cube",
+      vy: 0, v: 0, sol: r.mode !== "vaisseau", rot: 0, tenu: false, croc: null, recul: 0, grav: r.inv ? -1 : 1,
       charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] });
   }
 
@@ -561,6 +620,7 @@
     return Math.min(o.yFin, o.y0 + 0.5 * G * tau * tau);
   }
   const yMobile = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
+  const yScie = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const laserActif = (o, t) => Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
   function posPendule(o, t) {
     const th = o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
@@ -595,14 +655,18 @@
     const cible = j.stun > 0 ? 0 : vitesseCroisiere(j);
     if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * (j.tapis > 0 ? 2 : 1) * dt);
     else j.v = Math.max(cible, j.v - ACCEL * 2 * dt);
-    if (appui && j.sol && j.stun <= 0) { j.vy = SAUT_V * s; j.sol = false; j.tenu = true; }
+    const vaisseau = j.mode === "vaisseau";
+    if (vaisseau) { /* le vaisseau ne saute pas : appuyer = monter, relâcher = descendre */ }
+    else if (appui && j.sol && j.stun <= 0) { j.vy = SAUT_V * s; j.sol = false; j.tenu = true; }
     else if (presse && !j.sol && j.charge && j.stun <= 0) { j.vy = SAUT_V * s; j.charge = false; j.tenu = true; ev.push("bulle"); }
     if (j.tenu && !appui) j.tenu = false;
     if (j.vy * s >= 0) j.tenu = false;
     const xa = j.x, ya = j.y;
     if (j.recul > 0) { j.recul = Math.max(0, j.recul - dt); j.v = 0; j.x -= 480 * dt; } // repoussé en arrière par une scie
     else j.x += j.v * dt;
-    j.vy += G * (j.tenu ? G_TENU : 1) * s * dt; j.y += j.vy * dt;
+    if (vaisseau) { j.vy = Math.max(-VAISSEAU_VMAX, Math.min(VAISSEAU_VMAX, j.vy + (appui && j.stun <= 0 ? -VAISSEAU_MONTE : VAISSEAU_DESCEND) * dt)); j.tenu = false; }
+    else j.vy += G * (j.tenu ? G_TENU : 1) * s * dt;
+    j.y += j.vy * dt;
     j.sol = false;
 
     let contreMur = false;
@@ -627,7 +691,7 @@
         // de côté : on est bloqué contre (ou, repoussé en arrière, contre ce qui est derrière)
         if (j.recul > 0 && xa >= r.x + r.w - 3) { j.x = r.x + r.w - 1; j.recul = 0; continue; }
         j.x = Math.min(j.x, r.x - U + 1); j.v = 0; contreMur = true;
-        if (r.type === "rebond" && appui && !j.sol && j.rebonds < 4 && j.vy * s > -250) {
+        if (r.type === "rebond" && !vaisseau && appui && !j.sol && j.rebonds < 4 && j.vy * s > -250) {
           j.vy = SAUT_V * s; j.tenu = true; j.rebonds++; ev.push("rebond");
         }
         if (!ev.includes("bloque")) ev.push("bloque");
@@ -684,12 +748,23 @@
         }
       }
     }
+    for (const o of m.scies) {
+      if (o.detruit || Math.abs(o.x - j.x) > 3 * U) continue;
+      const y = yScie(o, j.t);
+      const cx = Math.max(j.x + 3, Math.min(o.x, j.x + U - 3)), cy = Math.max(j.y + 3, Math.min(y, j.y + U - 3));
+      if ((cx - o.x) ** 2 + (cy - y) ** 2 < (o.r - 3) ** 2) {
+        if (j.boost > 0) { o.detruit = true; ev.push("casse"); }
+        else if (j.recul <= 0) { j.recul = 0.3; j.v = 0; j.inv = 0.7; j.vy = y < j.y + U / 2 ? 200 : -200; ev.push("choc", "recul"); }
+      }
+    }
     if (j.y > H || j.y < -2 * U) {
       if (j.bouclier && s > 0) { j.bouclier = false; j.vy = SAUT_TREMPLIN * 1.1; j.y = H - 1; ev.push("bouclier"); }
       else { reprise(j, m, xa - U); j.stun = 0.35; ev.push("chute"); return ev; }
     }
     for (const o of m.portails) {
-      if (xa + U / 2 < o.x && j.x + U / 2 >= o.x && j.grav !== o.grav) { j.grav = o.grav; j.sol = false; j.tenu = false; ev.push("portail"); }
+      if (!(xa + U / 2 < o.x && j.x + U / 2 >= o.x)) continue;
+      if (o.mode) { if (j.mode !== o.mode) { j.mode = o.mode; j.vy *= 0.3; j.tenu = false; ev.push("portail"); } }
+      else if (j.grav !== o.grav) { j.grav = o.grav; j.sol = false; j.tenu = false; ev.push("portail"); }
     }
     if (s > 0) for (const t of m.tremplins) {
       if (t.x > j.x + U || t.x + U < j.x) continue;
@@ -718,7 +793,8 @@
         if (j.bouclier) { j.bouclier = false; ev.push("bouclier"); } else { j.stun = 1.1; j.v = 0; ev.push("glisse"); }
       }
     }
-    if (j.sol) j.rot = Math.round(j.rot / (Math.PI / 2)) * (Math.PI / 2);
+    if (j.mode === "vaisseau") j.rot = Math.atan2(j.vy, Math.max(j.v, 80)) * 0.8;
+    else if (j.sol) j.rot = Math.round(j.rot / (Math.PI / 2)) * (Math.PI / 2);
     else j.rot += dt * 7.5 * s;
     if (j.x >= m.fin) ev.push("fini");
     return ev;
@@ -740,6 +816,7 @@
     m.lasers.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y1, o.y2)) casser(o); });
     m.pendules.forEach((o) => { const b = posPendule(o, j.t); if (!o.detruit && dansX(b.x - o.r, 2 * o.r) && dansY(b.y - o.r, b.y + o.r)) casser(o); });
     m.portes.forEach((o) => { if (!o.detruit && dansX(o.x, o.w) && dansY(o.y, o.y + o.h)) casser(o); });
+    m.scies.forEach((o) => { const y = yScie(o, j.t); if (!o.detruit && dansX(o.x - o.r, 2 * o.r) && dansY(y - o.r, y + o.r)) casser(o); });
     return { x1, x2, y: j.y + U / 2, n };
   }
 
@@ -791,7 +868,7 @@
   }
 
   const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, etape, laser, solSous, MORCEAUX, LISTES,
-    yTombant, yMobile, laserActif, posPendule, fragileTombe, porteOuverte };
+    yTombant, yMobile, yScie, laserActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
 })(typeof window !== "undefined" ? window : globalThis);
