@@ -327,8 +327,8 @@
       const [cMoi, cLui] = moi ? ["#19f0ff", "#ff2bd6"] : ["#ff2bd6", "#19f0ff"];
       texte(sLui, 36, ch / 2 - 44, 32, cLui);
       texte(sMoi, 36, ch / 2 + 44, 32, cMoi);
-      texte(moi ? nom2 : nomJ1 || "—", 14, 18, 11, cLui, "left");
-      texte(moi ? nomJ1 || "—" : nom2, 14, ch - 18, 11, cMoi, "left");
+      texte(moi ? nom2 : nomJ1 || "—", 14, ch / 2 - 88, 11, cLui, "left");
+      texte(moi ? nomJ1 || "—" : nom2, 14, ch / 2 + 88, 11, cMoi, "left");
       texte(info, cw - 14, ch - 18, 10, "#ffe14d", "right");
     }
     if (v.phase === "service" && v.attente > 0) {

@@ -6,7 +6,21 @@
   <title>Pong — Rob</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../style.css" />
-  <style>body { touch-action: none; -webkit-user-select: none; user-select: none; } .corps-jeu { width: 100%; padding: 12px; }</style>
+  <style>
+    body { touch-action: none; -webkit-user-select: none; user-select: none; }
+    .corps-jeu { width: 100%; padding: 12px; }
+    /* écran en hauteur : bande libre sous le terrain pour poser le doigt */
+    .zone-doigt { display: none; }
+    @media (max-aspect-ratio: 20/21) {
+      .zone-doigt {
+        display: flex; flex: none; height: 20vh; margin: 0 12px 12px;
+        align-items: center; justify-content: center;
+        border: 2px dashed rgba(25, 240, 255, 0.25);
+        font: clamp(0.8rem, 3vh, 1.2rem) var(--pixel); color: rgba(25, 240, 255, 0.35);
+        letter-spacing: 0.6em;
+      }
+    }
+  </style>
 </head>
 <body class="page-jeu">
   <header class="barre-jeu">
@@ -27,6 +41,7 @@
       </div>
     </div>
   </div>
+  <div class="zone-doigt" aria-hidden="true">◀ ▶</div>
 
   <div class="modal" id="modal-classement" hidden>
     <div class="modal-boite">
