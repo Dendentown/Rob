@@ -972,11 +972,12 @@
       { nom: "Yo-yo", f(h, x) {
         h.sol(x, x + 2 * U, 0);
         D(h, x, 3, 7, 2);
-        h.bulle(x + 10 * U, 1.6);          // tout en bas : on s'y laisse tomber, puis on rappuie
-        h.objet(x + 12.5 * U, 3.6);
-        D(h, x, 15, 19, 2.5);
-        h.sol(x + 21 * U, x + 24 * U, 0);
-        return { l: 24, g: 0 };
+        h.bulle(x + 10 * U, 1.6);          // basse : on s'y laisse tomber, puis on rappuie
+        h.bulle(x + 13.5 * U, 4);          // plus haute, au-dessus du niveau de la plateforme
+        h.objet(x + 16.5 * U, 4.8);
+        D(h, x, 19, 23, 1);                // atterrissage un peu plus bas que la première bulle
+        h.sol(x + 25 * U, x + 28 * U, 0);
+        return { l: 28, g: 0 };
       } },
       { nom: "Saut de puce", f(h, x) {
         h.sol(x, x + 2 * U, 0);
