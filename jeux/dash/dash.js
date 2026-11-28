@@ -491,7 +491,14 @@
     monde.lasers.forEach((o) => {
       if (o.detruit || !visible(o)) return;
       const X = versEcran(o.x), on = M.laserActif(o, tj);
-      ctx.fillStyle = "#ff3b3b"; ctx.fillRect(X - 3, o.y1 - 4, o.w + 6, 4); ctx.fillRect(X - 3, o.y2 - 2, o.w + 6, 4);
+      // une porte = plusieurs segments sur le MÊME trait : pas d'embout entre deux segments collés
+      const colle = (y) => monde.lasers.some((q) => q !== o && q.x === o.x && (Math.abs(q.y1 - y) < 1 || Math.abs(q.y2 - y) < 1));
+      ctx.fillStyle = "#ff3b3b";
+      if (!colle(o.y1)) ctx.fillRect(X - 3, o.y1 - 4, o.w + 6, 4);
+      if (!colle(o.y2)) ctx.fillRect(X - 3, o.y2 - 2, o.w + 6, 4);
+      if (!on && !o.toujours && (colle(o.y1) || colle(o.y2))) { // ouverture d'une porte : petits crochets aux bords
+        ctx.fillStyle = "#ffe14d"; ctx.fillRect(X - 6, o.y1, o.w + 12, 2); ctx.fillRect(X - 6, o.y2 - 2, o.w + 12, 2);
+      }
       if (on) {
         ctx.fillStyle = "#ff3b3b"; ctx.shadowColor = "#ff3b3b"; ctx.shadowBlur = 18; ctx.fillRect(X, o.y1, o.w, o.y2 - o.y1);
         ctx.fillStyle = "#fff"; ctx.fillRect(X + o.w / 2 - 1, o.y1, 2, o.y2 - o.y1); ctx.shadowBlur = 0;
