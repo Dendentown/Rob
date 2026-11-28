@@ -547,7 +547,7 @@
         const e = M.etatSuiveur(o, j), X = versEcran(o.x), y = e.y;
         ctx.fillStyle = "#ff3b3b"; ctx.fillRect(X - 6, y - 8, 6, 16); ctx.fillRect(X + o.w, y - 8, 6, 16);
         if (e.etat === "charge") {
-          const k = Math.min(1, e.f / 1.2);
+          const k = Math.min(1, e.f / 1.0);
           ctx.fillStyle = `rgba(255,59,59,${0.12 + 0.35 * k})`; ctx.fillRect(X, y - 1, o.w, 2);
           ctx.fillStyle = "#ffb3b3"; ctx.beginPath(); ctx.arc(X - 3, y, 3 + 5 * k, 0, Math.PI * 2); ctx.fill();
         } else if (e.etat === "verrou") {

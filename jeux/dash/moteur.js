@@ -1456,7 +1456,7 @@
   const yScie = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const laserHActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > -0.2;
   // laser qui suit (vaisseau) : charge 1,2 s (suit la hauteur du joueur) · bloqué 0,35 s · tir 0,6 s · pause 0,05 s
-  const SUIT = { charge: 1.2, verrou: 1.55, feu: 2.15, P: 2.2 };
+  const SUIT = { charge: 1.0, verrou: 1.35, feu: 1.95, P: 2.0 };
   function etatSuiveur(o, j) {
     const t0 = j.trig[o.id];
     if (t0 == null) return { etat: null, y: o.y };
@@ -1614,8 +1614,8 @@
     }
     for (const o of m.lasersH) { // laser horizontal allumé : choc
       if (o.suit) {
-        // il démarre quand on entre dans la zone ; pendant la charge, il suit la hauteur du joueur
-        if (j.trig[o.id] == null && j.x + U > o.x && j.x < o.x + o.w) j.trig[o.id] = j.t;
+        // il démarre 10 blocs AVANT la zone (il est déjà chargé quand on y entre) ; pendant la charge, il suit la hauteur du joueur
+        if (j.trig[o.id] == null && j.x + 10 * U > o.x && j.x < o.x + o.w) j.trig[o.id] = j.t;
         if (j.trig[o.id] == null || j.x > o.x + o.w) continue;
         const e = etatSuiveur(o, j);
         if (e.etat === "charge" || (e.etat === null && j.lazY[o.id] == null)) { j.lazY = Object.assign({}, j.lazY, { [o.id]: j.y + U / 2 }); continue; }
