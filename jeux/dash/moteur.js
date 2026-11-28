@@ -530,23 +530,16 @@
           });
           cx += (2 + chemin.length * pas) * U;
         } else {
-          // portes laser sur TOUTE la hauteur du couloir, avec deux ouvertures qui se ferment à tour de rôle
-          const ph = a() * 6.283;
-          [4].forEach((i, q) => { // UNE seule porte : une grande ouverture et une petite
-            const f = ph + q * 1.9, lx = cx + i * U + 12;
-            const seg = (n1, n2, extra) => m.lasers.push(Object.assign({ id: m.id++, x: lx, w: 6, y1: yN(n2), y2: yN(n1), P: 1.6, ph: f }, extra));
-            // une GRANDE ouverture (2,8 blocs) et une PETITE (1,4 bloc), l'une en bas, l'autre en haut
-            const grandeEnBas = a() < 0.5;
-            const oa = grandeEnBas ? 2.8 : 1.4, ob = grandeEnBas ? 1.4 : 2.8;
-            const a1 = grandeEnBas ? 0.8 + a() * 0.8 : 1 + a() * 1.5;
-            const b1 = grandeEnBas ? 5.2 + a() * 1 : 4.6 + a() * 0.3;
-            seg(0, a1, { toujours: true });
-            seg(a1, a1 + oa, { ph: f });               // ouverture du bas
-            seg(a1 + oa, b1, { toujours: true });
-            seg(b1, b1 + ob, { ph: f + Math.PI });     // ouverture du haut (fermée quand celle du bas est ouverte)
-            seg(b1 + ob, 8, { toujours: true });
+          // portes laser comme en mode normal, mais sur toute la hauteur du couloir :
+          // une moitié basse et une moitié haute qui s'allument à tour de rôle (jamais les deux à la fois),
+          // deux portes espacées de 11 blocs, un peu décalées dans le temps
+          const ph = a() * 6.283, P = 1.4;
+          [4, 15].forEach((i, q) => {
+            const f = ph + q * 1.7, lx = cx + i * U + 12;
+            m.lasers.push({ id: m.id++, x: lx, w: 6, y1: yN(4), y2: yN(0), P, ph: f });
+            m.lasers.push({ id: m.id++, x: lx, w: 6, y1: yN(8), y2: yN(4), P, ph: f + Math.PI });
           });
-          cx += 9 * U;
+          cx += 20 * U;
         }
       }
       m.portails.push({ id: m.id++, x: cx + 2 * U, haut, bas: sol0, mode: "cube" });
