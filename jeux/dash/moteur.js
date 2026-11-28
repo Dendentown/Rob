@@ -60,7 +60,7 @@
   // Partie à l'envers : tout est retourné autour de y = MIROIR / 2 (le sol du niveau g devient un plafond en haut de l'écran)
   const MIROIR = H;
   function solHaut(m, x1, x2, g) { const yb = MIROIR - yDe(g); m.rects.push({ id: m.id++, x: x1, y: -300, w: x2 - x1, h: yb + 300, type: "sol", haut: true }); }
-  const ENVERS_OK = ["piques", "blocs", "montee", "descente", "trou", "multi-trous", "escalier", "plafond-piques", "tunnel", "etroit", "slalom", "plateformes", "zigzag", "double", "trois-niveaux", "souterrain"];
+  const ENVERS_OK = ["rythme", "piques", "blocs", "montee", "descente", "trou", "multi-trous", "escalier", "plafond-piques", "tunnel", "etroit", "slalom", "plateformes", "zigzag", "double", "trois-niveaux", "souterrain"];
   function mondeTemp(m) { const t = { id: m.id }; LISTES.forEach((k) => (t[k] = [])); return t; }
   function retourner(m, tm) {
     m.id = tm.id;
@@ -115,15 +115,165 @@
   // Chaque morceau commence par du sol au niveau courant g (point de reprise sûr)
   // boîte du double saut : juste au-dessus de la bulle (un peu en avant, là où le double saut monte)
   let DX_DOUBLE = 2, H_DOUBLE = 6.8;
+  // ================= RYTHME =================
+  // D'après Smith, Treanor, Whitehead & Mateas, « Rhythm-Based Level Generation for 2D Platformers » (2009) :
+  // 1) on génère d'abord un RYTHME (les instants où le joueur saute, saut court ou long),
+  // 2) puis la GÉOMÉTRIE qui oblige à sauter exactement à ces instants, calculée avec la vraie
+  //    physique du cube (simulation),
+  // 3) des CRITIQUES vérifient chaque obstacle : il doit passer en sautant un peu tôt ou un peu tard
+  //    (± 0,05 s) et être impossible sans sauter ; sinon on essaie un autre obstacle,
+  // 4) chaque groupe finit par ~1 s de sol libre (repos) et est parfois RÉPÉTÉ (on apprend le motif),
+  // 5) une boîte « ? » au sommet de certains sauts au-dessus du vide (récompense du risque).
+  const TENUE_COURT = 0.06, TENUE_LONG = 0.5, DECALAGES = [-0.05, 0, 0.05];
+  function genererRythme(a) {
+    const tempo = [0.62, 0.75, 0.9][(a() * 3) | 0];          // densité forte, moyenne, faible
+    const beat = ["regulier", "regulier", "swing", "irregulier"][(a() * 4) | 0];
+    const n = 4 + ((a() * 4) | 0);                            // 4 à 7 sauts
+    const temps = [];
+    let t = 0.45;
+    for (let i = 0; i < n; i++) {
+      temps.push(t);
+      let d = tempo;
+      if (beat === "swing") d = tempo * (i % 2 ? 1.35 : 0.75);
+      else if (beat === "irregulier") d = tempo * (0.8 + a() * 0.6);
+      t += Math.round(d * 20) / 20;
+    }
+    return temps.map((t, i) => {
+      const libre = i < n - 1 ? temps[i + 1] - t : 9;          // temps avant le saut suivant
+      const sorte = libre >= 1.25 && a() < 0.15 ? "double" : libre >= 0.85 && a() < 0.5 ? "long" : "court";
+      return { t, sorte };
+    });
+  }
+  function mondeVide() { const w = { fin: Infinity, reperes: [], id: 1 }; LISTES.forEach((k) => (w[k] = [])); return w; }
+  // joue une suite de sauts (avec un décalage de temps) ; renvoie les trajectoires et les incidents
+  function jouer(w, x0, y0, v0, sauts, decal, jusqua, sauter) {
+    const j = nouveauJoueur();
+    Object.assign(j, { x: x0, y: y0, v: v0, sol: true });
+    const dt = 1 / 120, traces = sauts.map(() => []), incidents = [];
+    let t = 0;
+    while (j.x < jusqua && t < 30) {
+      let appui = false;
+      sauts.forEach((s, i) => {
+        if (sauter && !sauter(i)) return;
+        const t0 = s.t + decal;
+        if (s.sorte === "court") appui = appui || (t >= t0 && t < t0 + TENUE_COURT);
+        else if (s.sorte === "long") appui = appui || (t >= t0 && t < t0 + TENUE_LONG);
+        else appui = appui || (t >= t0 && t < t0 + TENUE_COURT) || (t >= t0 + 0.24 && t < t0 + 0.24 + TENUE_LONG);
+      });
+      const e = etape(j, w, dt, appui);
+      t += dt;
+      sauts.forEach((s, i) => { if (t >= s.t + decal && t < s.t + decal + 1.3) traces[i].push({ x: j.x, y: j.y, t, sol: j.sol }); });
+      e.forEach((k) => { if (k === "choc" || k === "chute" || k === "bloque") incidents.push({ k, x: j.x, t }); });
+    }
+    return { traces, incidents, j };
+  }
+
+  function morceauRythme(m, x, g, a) {
+    const v0 = vitesseBase(x), y0 = yDe(g) - U;
+    let sauts = genererRythme(a);
+    // RÉPÉTITION (une fois sur trois) : le même groupe rejoué juste après une courte pause,
+    // avec les mêmes obstacles, pour qu'on apprenne le motif
+    if (a() < 1 / 3) {
+      const dec = sauts[sauts.length - 1].t + 1.3 - sauts[0].t;
+      sauts = sauts.concat(sauts.map((q) => ({ t: q.t + dec, sorte: q.sorte, modele: q })));
+    }
+    const duree = sauts[sauts.length - 1].t + 1.1;
+    const l = Math.ceil((duree * v0) / U) + 3;
+    const w = mondeVide();
+    w.rects.push({ id: w.id++, x: x - 4 * U, y: yDe(g), w: (l + 8) * U, h: H + 300 - yDe(g), type: "sol" });
+    const solInitial = Object.assign({}, w.rects[0]);
+    const fin = x + l * U;
+    const sain = (r, jusqua) => !r.incidents.some((i) => i.x <= jusqua);
+    // découpe un trou dans le sol entre x1 et x2
+    const trou = (x1, x2) => {
+      const s = w.rects.find((r) => r.type === "sol" && r.x < x1 && r.x + r.w > x2);
+      if (!s) return false;
+      const fin_ = s.x + s.w;
+      s.w = x1 - s.x;
+      w.rects.push({ id: w.id++, x: x2, y: s.y, w: fin_ - x2, h: s.h, type: "sol" });
+      return true;
+    };
+    const annuler = (etat) => { LISTES.forEach((k) => (w[k] = etat[k])); };
+    const sauver = () => { const e = {}; LISTES.forEach((k) => (e[k] = w[k].map((o) => Object.assign({}, o)))); return e; };
+
+    sauts.forEach((s, i) => {
+      // trajectoire de ce saut avec la géométrie déjà construite
+      const ref = jouer(w, x, y0, v0, sauts.slice(0, i + 1), 0, fin);
+      const tr = ref.traces[i].filter((p) => !p.sol);
+      if (tr.length < 6) return;
+      const sol0 = tr[0].y + U;                                    // hauteur du sol au décollage
+      const haut = (p) => sol0 - (p.y + U);                         // hauteur du bas du cube au-dessus de ce sol
+      const sommet = tr.reduce((b, p) => (p.y < b.y ? p : b), tr[0]);
+      const atterrit = tr[tr.length - 1].x + U;
+      const dessus = (h) => tr.filter((p) => haut(p) > h);           // portion du saut au-dessus d'une hauteur
+      const options = s.sorte === "court" ? ["pique", "pique", "trou"] :
+        s.sorte === "long" ? ["piques", "piques", "trouLarge", "bloc", "pilier", "marche"] : ["bulle"];
+      // ordre d'essai au hasard
+      for (let k = options.length - 1; k > 0; k--) { const r = (a() * (k + 1)) | 0; [options[k], options[r]] = [options[r], options[k]]; }
+      if (s.modele) { options.length = 0; if (s.modele.obstacle) options.push(s.modele.obstacle); } // répétition : même obstacle
+      for (const o of options) {
+        const avant = sauver();
+        let boite = null;
+        if (o === "pique") {
+          const z = dessus(24); if (z.length < 2) { annuler(avant); continue; }
+          const cx = (z[0].x + z[z.length - 1].x + U) / 2;
+          w.piques.push({ id: w.id++, x: cx - U / 2, y: sol0 });
+        } else if (o === "piques") {
+          const z = dessus(26); if (z.length < 2) { annuler(avant); continue; }
+          const x1 = z[0].x + U, x2 = z[z.length - 1].x, nb = Math.max(2, Math.min(4, Math.floor((x2 - x1) / U)));
+          const cx = (x1 + x2) / 2;
+          for (let q = 0; q < nb; q++) w.piques.push({ id: w.id++, x: cx - (nb * U) / 2 + q * U, y: sol0 });
+        } else if (o === "trou" || o === "trouLarge") {
+          const x1 = tr[0].x + U + 0.4 * U, x2 = atterrit - U - 0.5 * U;
+          if (x2 - x1 < (o === "trou" ? 1.5 : 2.5) * U || !trou(x1, x2)) { annuler(avant); continue; }
+          if (o === "trouLarge" && a() < 0.35) boite = { x: sommet.x + U / 2, y: sommet.y + U / 2 };
+        } else if (o === "bloc" || o === "pilier") {
+          const hb = o === "bloc" ? 1 : 2, z = dessus(hb * U + 12); if (z.length < 2) { annuler(avant); continue; }
+          const cx = (z[0].x + z[z.length - 1].x + U) / 2;
+          for (let q = 1; q <= hb; q++) w.rects.push({ id: w.id++, x: cx - U / 2, y: sol0 - q * U, w: U, h: U, type: "bloc" });
+        } else if (o === "marche") {
+          // on se pose sur une marche (1 bloc de haut, 3 de large) puis on en redescend
+          const z = tr.filter((p, q) => q > tr.indexOf(sommet) && haut(p) > U + 6);
+          if (!z.length) { annuler(avant); continue; }
+          const x1 = z[z.length - 1].x + U * 0.6;
+          w.rects.push({ id: w.id++, x: x1, y: sol0 - U, w: 3 * U, h: U, type: "bloc" });
+        } else if (o === "bulle") {
+          // double saut : une bulle là où se trouve le cube au moment du 2e appui, au-dessus d'un grand vide
+          const p2 = tr.find((p) => p.t >= s.t + 0.2) || sommet;
+          w.bulles.push({ id: w.id++, x: p2.x + U / 2, y: p2.y + U / 2 });
+          const fin2 = tr[tr.length - 1].x;
+          const x1 = tr[0].x + U + 0.4 * U, x2 = fin2 - 0.5 * U;
+          if (x2 - x1 < 3 * U || !trou(x1, x2)) { annuler(avant); continue; }
+          if (a() < 1 / 3) { const s2 = tr.filter((p) => p.t > s.t + 0.25).reduce((b, p) => (p.y < b.y ? p : b), sommet); boite = { x: s2.x + U / 2, y: s2.y + U / 2 }; }
+        }
+        // CRITIQUES : 1) passe en sautant un peu tôt / un peu tard ; 2) impossible sans ce saut
+        const jusqua = atterrit + U;
+        const tolere = DECALAGES.every((d) => sain(jouer(w, x, y0, v0, sauts.slice(0, i + 1), d, jusqua), jusqua));
+        const sansSaut = jouer(w, x, y0, v0, sauts.slice(0, i + 1), 0, jusqua, (q) => q !== i);
+        const oblige = !sain(sansSaut, jusqua);
+        if (tolere && oblige) { if (boite) w.boites.push({ id: w.id++, x: boite.x, y: boite.y }); s.obstacle = o; break; }
+        annuler(avant);
+      }
+    });
+    // le groupe complet doit passer du début à la fin (sinon on le simplifie : sol plat)
+    const final = jouer(w, x, y0, v0, sauts, 0, fin);
+    if (!sain(final, fin)) { w.rects = [Object.assign({}, solInitial)]; w.piques = []; w.boites = []; w.bulles = []; }
+    // copie dans le monde, avec de nouveaux identifiants
+    const copier_ = (k) => w[k].forEach((o) => m[k].push(Object.assign({}, o, { id: m.id++ })));
+    ["rects", "piques", "boites", "bulles"].forEach(copier_);
+    return { l, g, rythme: sauts };
+  }
+
   const MORCEAUX = [
-    { nom: "piques", min: 0, poids: 4, f(m, x, g, a) {
+    { nom: "rythme", min: 0, poids: 22, f: (m, x, g, a) => morceauRythme(m, x, g, a) },
+    { nom: "piques", min: 0, poids: 1, f(m, x, g, a) {
       const n = 1 + ((a() * 3) | 0); const l = 4 + n;
       sol(m, x, x + l * U, g);
       for (let i = 0; i < n; i++) pique(m, x + (2 + i) * U, yDe(g));
       a(); // (plus de « ? » au-dessus de piques seuls)
       return { l, g };
     } },
-    { nom: "blocs", min: 0, poids: 6, f(m, x, g, a) {
+    { nom: "blocs", min: 0, poids: 1, f(m, x, g, a) {
       // bloc · piques · bloc OU piques · bloc · piques (échangés), 3 ou 5 éléments,
       // espaces de 2 à 3 cases, 1 à 3 piques, blocs simples, doubles ou larges.
       // BULLES (double saut) au-dessus de certains piques, sans jamais punir celui qui les utilise :

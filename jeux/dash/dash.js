@@ -64,6 +64,7 @@
     mode = "solo";
     course = { id: 0, longueur: LONGUEUR_COURSE };
     monde = M.creerMonde((Math.random() * 2 ** 31) | 0, { longueur: LONGUEUR_COURSE });
+    M.etendre(monde, monde.fin + 20 * M.U); // tout le parcours est calculé d'avance (pendant le compte à rebours) : pas d'à-coup en jeu
     j = M.nouveauJoueur();
     sac = []; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
     etat = "compte"; compte = 3;
@@ -226,6 +227,7 @@
   function commencerCourse(c) {
     course = c; mode = "course";
     monde = M.creerMonde(c.graine, { longueur: c.longueur, course: true });
+    M.etendre(monde, monde.fin + 20 * M.U);
     j = M.nouveauJoueur();
     sac = []; particules = []; rayons = []; liens = []; autres = {}; temps = 0;
     majBoutonObjet();
