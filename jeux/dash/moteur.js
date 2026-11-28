@@ -492,6 +492,9 @@
           const P = 1.8, ph = a() * 6.283;
           [[2, 2.5], [8, 5.5], [14, 3.8]].forEach(([i, h], q) =>
             m.lasersH.push({ id: m.id++, x: cx + i * U, w: 6 * U, y: yN(h), P, ph: ph + q * 2.1 }));
+          // et des lasers CONSTANTS le long du sol et du plafond : impossible de s'y coller
+          m.lasersH.push({ id: m.id++, x: cx, w: 21 * U, y: sol0 - 5, P, ph: 0, toujours: true });
+          m.lasersH.push({ id: m.id++, x: cx, w: 21 * U, y: haut + 5, P, ph: 0, toujours: true });
           cx += 22 * U;
         } else if (t === "scies") {
           for (let i = 0; i < 3; i++) m.scies.push({ id: m.id++, x: cx + (3 + i * 4.5) * U, yc: yN(4), amp: 2.6 * U, P: 1.6 + a() * 0.8, ph: a() * 6.283, r: 14 });
@@ -715,7 +718,7 @@
   }
   const yMobile = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const yScie = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
-  const laserHActif = (o, t) => Math.sin((2 * Math.PI * t) / o.P + o.ph) > -0.2;
+  const laserHActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > -0.2;
   const laserActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
   function posPendule(o, t) {
     const th = o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
