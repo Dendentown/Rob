@@ -497,7 +497,8 @@
           m.lasersH.push({ id: m.id++, x: cx, w: 21 * U, y: haut + 5, P, ph: 0, toujours: true });
           cx += 22 * U;
         } else if (t === "scies") {
-          for (let i = 0; i < 3; i++) m.scies.push({ id: m.id++, x: cx + (3 + i * 4.5) * U, yc: yN(4), amp: 2.6 * U, P: 1.6 + a() * 0.8, ph: a() * 6.283, r: 14 });
+          // scies qui vont du sol jusqu'au plafond (amplitude = demi-hauteur du couloir moins leur rayon)
+          for (let i = 0; i < 3; i++) m.scies.push({ id: m.id++, x: cx + (3 + i * 4.5) * U, yc: yN(4), amp: 4 * U - 14, P: 1.6 + a() * 0.8, ph: a() * 6.283, r: 14 });
           cx += 16 * U;
         } else if (t === "cubes") {
           // obstacles variés : piliers (sol ou plafond) parfois terminés par un pique, et blocs en suspension
