@@ -1636,9 +1636,9 @@
       if (!appui || j.anneaux.includes(a.id)) continue;
       if (Math.abs(j.x + U / 2 - a.x) < U && Math.abs(j.y + U / 2 - a.y) < U) { j.vy = SAUT * s; j.tenu = false; j.anneaux.push(a.id); ev.push("anneau"); }
     }
-    for (const o of m.bulles) {
+    for (const o of m.bulles) { // zone de prise élargie : 1,4 bloc autour de la bulle
       if (j.bulles.includes(o.id)) continue;
-      if (Math.abs(j.x + U / 2 - o.x) < U * 0.95 && Math.abs(j.y + U / 2 - o.y) < U * 0.95) { j.bulles.push(o.id); j.charge = true; ev.push("bulle-prise"); }
+      if (Math.abs(j.x + U / 2 - o.x) < U * 1.4 && Math.abs(j.y + U / 2 - o.y) < U * 1.4) { j.bulles.push(o.id); j.charge = true; ev.push("bulle-prise"); }
     }
     for (const o of m.boutons) {
       if (j.trig[o.porte] != null) continue;

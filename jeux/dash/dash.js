@@ -596,7 +596,8 @@
     });
     monde.bulles.forEach((o) => {
       if (!visible(o) || j.bulles.includes(o.id)) return;
-      const X = versEcran(o.x), r = 12 + Math.sin(t / 150 + o.x) * 1.5;
+      const X = versEcran(o.x), r = 16 + Math.sin(t / 150 + o.x) * 1.5;
+      ctx.fillStyle = "rgba(25,240,255,0.06)"; ctx.beginPath(); ctx.arc(X, o.y, U * 1.4, 0, Math.PI * 2); ctx.fill(); // zone où la bulle se prend
       ctx.fillStyle = "rgba(25,240,255,0.15)"; ctx.strokeStyle = "#19f0ff"; ctx.lineWidth = 2; ctx.shadowColor = "#19f0ff"; ctx.shadowBlur = 12;
       ctx.beginPath(); ctx.arc(X, o.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
       ctx.fillStyle = "#d8f9ff"; ctx.fillRect(X - 5, o.y - 6, 3, 3);
