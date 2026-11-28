@@ -473,8 +473,11 @@
         if (t === "courant") {
           // COURANT D'AIR : une zone pousse le vaisseau vers le haut ou vers le bas (il faut compenser),
           // avec deux blocs en suspension à éviter
-          const f = a() < 0.5 ? -1100 : 1100;
+          // courant FORT (vers le haut : relâcher fait encore descendre lentement ; vers le bas : appuyer fait encore monter)
+          const f = a() < 0.5 ? -1380 : 1680;
           m.courants.push({ id: m.id++, x: cx + U, w: 17 * U, y1: haut, y2: sol0, f });
+          // des piques tout le long du sol et du plafond : impossible de se laisser plaquer
+          for (let i = 1; i < 18; i++) { pique(m, cx + i * U, sol0); pique(m, cx + i * U, haut, true); }
           const flotte = (bx, n) => m.rects.push({ id: m.id++, x: bx, y: yN(n + 1), w: U, h: U, type: "bloc", fixe: true });
           flotte(cx + 6 * U, 3 + a());
           flotte(cx + 12 * U, f < 0 ? 5.5 : 2);
@@ -488,10 +491,10 @@
           }
           cx += 19 * U;
         } else if (t === "lasersH") {
-          // LASERS HORIZONTAUX : des rayons dans la longueur, à une hauteur donnée, qui s'allument par moments
-          const P = 1.8, ph = a() * 6.283;
-          [[2, 2.5], [8, 5.5], [14, 3.8]].forEach(([i, h], q) =>
-            m.lasersH.push({ id: m.id++, x: cx + i * U, w: 6 * U, y: yN(h), P, ph: ph + q * 2.1 }));
+          // LASER QUI SUIT : un rayon horizontal sur toute la zone ; il se charge en suivant la hauteur du joueur,
+          // se bloque un instant (il clignote) puis tire et coupe la zone en deux : il faut s'écarter de la ligne
+          const P = 1.8;
+          m.lasersH.push({ id: m.id++, x: cx, w: 21 * U, y: milieu, P, ph: 0, suit: true });
           // et des lasers CONSTANTS le long du sol et du plafond : impossible de s'y coller
           m.lasersH.push({ id: m.id++, x: cx, w: 21 * U, y: sol0 - 5, P, ph: 0, toujours: true });
           m.lasersH.push({ id: m.id++, x: cx, w: 21 * U, y: haut + 5, P, ph: 0, toujours: true });
@@ -1420,12 +1423,12 @@
   const VAISSEAU_MONTE = 1900, VAISSEAU_DESCEND = 1500, VAISSEAU_VMAX = 380;
   function nouveauJoueur() {
     return { x: 0, y: yDe(0) - U, vy: 0, v: 0, sol: true, rot: 0, bouclier: false, boost: 0, lent: 0, stun: 0, inv: 0,
-      anneaux: [], flaques: [], boites: [], vites: [], t: 0, recul: 0, elanT: 0, elanV: 0, tirage: null, mode: "cube", grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [] };
+      anneaux: [], flaques: [], boites: [], vites: [], t: 0, recul: 0, elanT: 0, elanV: 0, tirage: null, mode: "cube", grav: 1, tenu: false, prec: false, charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [], lazY: {} };
   }
   // copie indépendante (pour les simulations)
   function copier(j) {
     return Object.assign({}, j, { anneaux: j.anneaux.slice(), vites: (j.vites || []).slice(), flaques: j.flaques.slice(), boites: j.boites.slice(), bulles: j.bulles.slice(),
-      trig: Object.assign({}, j.trig), attente: Object.assign({}, j.attente), croc: j.croc ? Object.assign({}, j.croc) : null, tirage: j.tirage ? Object.assign({}, j.tirage) : null });
+      trig: Object.assign({}, j.trig), lazY: Object.assign({}, j.lazY), attente: Object.assign({}, j.attente), croc: j.croc ? Object.assign({}, j.croc) : null, tirage: j.tirage ? Object.assign({}, j.tirage) : null });
   }
 
   // point de reprise : le dernier repère derrière le joueur (les pièges déclenchés sont remis en place)
@@ -1437,7 +1440,7 @@
   function placer(j, r) { // à l'arrêt sur un point de reprise (au plafond si on est dans une partie à l'envers)
     Object.assign(j, { x: r.x + 2, y: r.mode === "vaisseau" ? r.yv : r.inv ? MIROIR - yDe(r.g) : yDe(r.g) - U, mode: r.mode || "cube",
       vy: 0, v: 0, sol: r.mode !== "vaisseau", rot: 0, tenu: false, croc: null, recul: 0, elanT: 0, tirage: null, grav: r.inv ? -1 : 1,
-      charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [], vites: [] });
+      charge: false, rebonds: 0, tapis: 0, trig: {}, attente: {}, bulles: [], vites: [], lazY: {} });
   }
 
   const vitesseCroisiere = (j) => vitesseBase(j.x) * (j.boost > 0 ? 1.5 : 1) * (j.lent > 0 ? 0.6 : 1) * (j.tapis > 0 ? 1.6 : j.tapis < 0 ? 0.5 : 1);
@@ -1454,6 +1457,14 @@
   const yMobile = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const yScie = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const laserHActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > -0.2;
+  // laser qui suit (vaisseau) : charge 1,2 s (suit la hauteur du joueur) · bloqué 0,35 s · tir 0,6 s · pause 0,05 s
+  const SUIT = { charge: 1.2, verrou: 1.55, feu: 2.15, P: 2.2 };
+  function etatSuiveur(o, j) {
+    const t0 = j.trig[o.id];
+    if (t0 == null) return { etat: null, y: o.y };
+    const f = (j.t - t0) % SUIT.P, y = j.lazY && j.lazY[o.id] != null ? j.lazY[o.id] : o.y;
+    return { etat: f < SUIT.charge ? "charge" : f < SUIT.verrou ? "verrou" : f < SUIT.feu ? "feu" : null, y, f };
+  }
   const laserActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
   // temps propre d'un piège : celui du joueur, ou (piège synchronisé) le temps depuis son déclenchement
   function tPiege(o, j) { return o.sync ? (j.trig[o.id] == null ? 0 : j.t - j.trig[o.id]) : j.t; }
@@ -1604,6 +1615,15 @@
       }
     }
     for (const o of m.lasersH) { // laser horizontal allumé : choc
+      if (o.suit) {
+        // il démarre quand on entre dans la zone ; pendant la charge, il suit la hauteur du joueur
+        if (j.trig[o.id] == null && j.x + U > o.x && j.x < o.x + o.w) j.trig[o.id] = j.t;
+        if (j.trig[o.id] == null || j.x > o.x + o.w) continue;
+        const e = etatSuiveur(o, j);
+        if (e.etat === "charge" || (e.etat === null && j.lazY[o.id] == null)) { j.lazY = Object.assign({}, j.lazY, { [o.id]: j.y + U / 2 }); continue; }
+        if (e.etat === "feu" && j.x + U > o.x && j.y + 4 < e.y + 3 && j.y + U - 4 > e.y - 3) aie(o, false);
+        continue;
+      }
       if (o.detruit || o.x > j.x + U || o.x + o.w < j.x || !laserHActif(o, j.t)) continue;
       if (j.y + 4 < o.y + 3 && j.y + U - 4 > o.y - 3) aie(o, false);
     }
@@ -1740,7 +1760,7 @@
   }
 
   const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, tirer, etape, laser, solSous, MORCEAUX, LISTES, reglerDouble: (dx, h) => { DX_DOUBLE = dx; H_DOUBLE = h; },
-    yTombant, yMobile, yScie, tPiege, SETS, TAMPONS, laserActif, laserHActif, posPendule, fragileTombe, porteOuverte };
+    yTombant, yMobile, yScie, tPiege, SETS, TAMPONS, laserActif, laserHActif, etatSuiveur, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
 })(typeof window !== "undefined" ? window : globalThis);

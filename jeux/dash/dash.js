@@ -543,6 +543,21 @@
     // lasers horizontaux (vaisseau)
     monde.lasersH.forEach((o) => {
       if (o.detruit || !visible(o)) return;
+      if (o.suit) { // laser qui suit : se charge en suivant le joueur, clignote, puis tire
+        const e = M.etatSuiveur(o, j), X = versEcran(o.x), y = e.y;
+        ctx.fillStyle = "#ff3b3b"; ctx.fillRect(X - 6, y - 8, 6, 16); ctx.fillRect(X + o.w, y - 8, 6, 16);
+        if (e.etat === "charge") {
+          const k = Math.min(1, e.f / 1.2);
+          ctx.fillStyle = `rgba(255,59,59,${0.12 + 0.35 * k})`; ctx.fillRect(X, y - 1, o.w, 2);
+          ctx.fillStyle = "#ffb3b3"; ctx.beginPath(); ctx.arc(X - 3, y, 3 + 5 * k, 0, Math.PI * 2); ctx.fill();
+        } else if (e.etat === "verrou") {
+          if (((e.f * 12) | 0) % 2 === 0) { ctx.fillStyle = "rgba(255,59,59,0.85)"; for (let x = 0; x < o.w; x += 14) ctx.fillRect(X + x, y - 2, 8, 4); }
+        } else if (e.etat === "feu") {
+          ctx.fillStyle = "#ff3b3b"; ctx.shadowColor = "#ff3b3b"; ctx.shadowBlur = 20; ctx.fillRect(X, y - 4, o.w, 8);
+          ctx.fillStyle = "#fff"; ctx.fillRect(X, y - 1, o.w, 2); ctx.shadowBlur = 0;
+        }
+        return;
+      }
       const X = versEcran(o.x), on = M.laserHActif(o, tj);
       ctx.fillStyle = "#ff3b3b"; ctx.fillRect(X - 4, o.y - 6, 4, 12); ctx.fillRect(X + o.w, o.y - 6, 4, 12);
       if (on) {
