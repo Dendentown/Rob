@@ -484,11 +484,8 @@
           cx += 19 * U;
         } else if (t === "vitesse") {
           // ANNEAUX DE VITESSE : passer dedans donne un élan (un bonus pour qui vise bien)
-          let h = 2 + a() * 4;
-          for (let i = 0; i < 4; i++) {
-            m.anneauxV.push({ id: m.id++, x: cx + (3 + i * 4) * U, y: yN(h), r: 0.9 * U });
-            h = Math.max(1.5, Math.min(6.5, h + (a() < 0.5 ? -1.5 : 1.5)));
-          }
+          // seulement 3 anneaux, alignés au milieu du couloir
+          for (let i = 0; i < 3; i++) m.anneauxV.push({ id: m.id++, x: cx + (4 + i * 5) * U, y: yN(4), r: 0.9 * U });
           cx += 19 * U;
         } else if (t === "lasersH") {
           // LASER QUI SUIT : un rayon horizontal sur toute la zone ; il se charge en suivant la hauteur du joueur,
