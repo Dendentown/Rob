@@ -125,34 +125,42 @@
     } },
     { nom: "blocs", min: 0, poids: 6, f(m, x, g, a) {
       // bloc · piques · bloc OU piques · bloc · piques (échangés), 3 ou 5 éléments,
-      // espaces de 2 à 3 cases, 1 à 3 piques, blocs simples, doubles ou larges
+      // espaces de 2 à 3 cases, 1 à 3 piques, blocs simples, doubles ou larges.
+      // BULLES (double saut) au-dessus de certains piques, sans jamais punir celui qui les utilise :
+      //  - après une bulle, les piques suivants ont aussi leur bulle, et la fin du passage laisse
+      //    assez de sol libre pour retomber ;
+      //  - une bulle qui n'est pas entre deux blocs a toujours un objet très haut au-dessus ;
+      //    entre deux blocs, l'objet est seulement parfois là.
       const espace = () => 2 + ((a() * 3) | 0) * 0.5;
-      let cx = 2, typeBloc = a() < 0.5, double = false;
-      const hautes = [];
       const n = a() < 0.4 ? 5 : 3;
+      let typeBloc = a() < 0.5;
+      const elems = [];
       for (let e = 0; e < n; e++) {
-        if (e > 0) cx += espace();
-        const entreBlocs = !typeBloc && e > 0 && e < n - 1; // piques encadrés par deux blocs
-        if (typeBloc) {
-          const r = a(), larg = r < 0.25 ? 2 : 1, haut = r > 0.7 ? 2 : 1;
-          if (haut === 2) double = true;
-          for (let k = 1; k <= haut; k++) bloc(m, x + cx * U, g + k, larg * U);
-          cx += larg;
-        } else {
-          const np = 1 + ((a() * 3) | 0);
-          for (let i = 0; i < np; i++) pique(m, x + (cx + i) * U, yDe(g));
-          // une bulle de saut seulement au-dessus de piques ENTRE deux blocs, et toujours avec une boîte
-          // très haut au-dessus (atteignable seulement avec le double saut : bulle puis rappui)
-          if (entreBlocs && a() < 0.6) hautes.push(x + (cx + np / 2) * U);
-          // (pas de « ? » à la place d'une bulle : les boîtes de ce passage sont seulement au-dessus des bulles)
-          cx += np;
-        }
+        if (typeBloc) { const r = a(); elems.push({ bloc: true, larg: r < 0.25 ? 2 : 1, haut: r > 0.7 ? 2 : 1 }); }
+        else elems.push({ bloc: false, np: 1 + ((a() * 3) | 0), entre: e > 0 && e < n - 1 });
         typeBloc = !typeBloc;
       }
-      // (pas de boîte du double saut à côté d'un bloc double : on l'attraperait d'un simple saut depuis dessus)
-      // (pas à côté d'un bloc double : on attraperait la boîte d'un simple saut depuis dessus)
-      if (!double) hautes.forEach((bx) => { m.bulles.push({ id: m.id++, x: bx, y: yDe(g + 2.5) }); boite(m, bx + DX_DOUBLE * U, g + H_DOUBLE); });
-      const l = Math.ceil(cx + 2);
+      // à côté d'un bloc double, un objet haut s'attraperait d'un simple saut : pas de bulles alors
+      const double = elems.some((o) => o.bloc && o.haut === 2);
+      let cx = 2, chaine = false;
+      elems.forEach((o, e) => {
+        if (e > 0) cx += espace();
+        if (o.bloc) {
+          for (let k = 1; k <= o.haut; k++) bloc(m, x + cx * U, g + k, o.larg * U);
+          cx += o.larg;
+          return;
+        }
+        for (let i = 0; i < o.np; i++) pique(m, x + (cx + i) * U, yDe(g));
+        const bx = x + (cx + o.np / 2) * U;
+        if (!double && (chaine || a() < 0.45)) {
+          chaine = true;
+          m.bulles.push({ id: m.id++, x: bx, y: yDe(g + 2.5) });
+          if (!o.entre || a() < 1 / 3) boite(m, bx + DX_DOUBLE * U, g + H_DOUBLE);
+        }
+        cx += o.np;
+      });
+      // après une bulle, de la place pour retomber du double saut (pas de piques juste après)
+      const l = Math.ceil(cx + (chaine ? 10 : 2));
       sol(m, x, x + l * U, g);
       return { l, g };
     } },
