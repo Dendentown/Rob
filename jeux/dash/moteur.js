@@ -127,8 +127,8 @@
       // bloc · piques · bloc OU piques · bloc · piques (échangés), 3 ou 5 éléments,
       // espaces de 2 à 3 cases, 1 à 3 piques, blocs simples, doubles ou larges.
       // BULLES (double saut) au-dessus de certains piques, sans jamais punir celui qui les utilise :
-      //  - après une bulle, les piques suivants ont aussi leur bulle, et la fin du passage laisse
-      //    assez de sol libre pour retomber ;
+      //  - après une bulle, les piques suivants ont aussi leur bulle (2 séries à la suite au plus),
+      //    puis un espace de sol libre pour se réceptionner ;
       //  - une bulle qui n'est pas entre deux blocs a toujours un objet très haut au-dessus ;
       //    entre deux blocs, l'objet est seulement parfois là.
       const espace = () => 2 + ((a() * 3) | 0) * 0.5;
@@ -142,9 +142,10 @@
       }
       // à côté d'un bloc double, un objet haut s'attraperait d'un simple saut : pas de bulles alors
       const double = elems.some((o) => o.bloc && o.haut === 2);
-      let cx = 2, chaine = false;
+      let cx = 2, chaine = 0; // chaine = nombre de séries piques + bulle à la suite (2 au plus)
       elems.forEach((o, e) => {
         if (e > 0) cx += espace();
+        if (chaine >= 2) { cx += 8; chaine = 0; } // après 2 bulles : un espace pour se réceptionner
         if (o.bloc) {
           for (let k = 1; k <= o.haut; k++) bloc(m, x + cx * U, g + k, o.larg * U);
           cx += o.larg;
@@ -152,15 +153,15 @@
         }
         for (let i = 0; i < o.np; i++) pique(m, x + (cx + i) * U, yDe(g));
         const bx = x + (cx + o.np / 2) * U;
-        if (!double && (chaine || a() < 0.45)) {
-          chaine = true;
+        if (!double && (chaine > 0 || a() < 0.45)) {
+          chaine++;
           m.bulles.push({ id: m.id++, x: bx, y: yDe(g + 2.5) });
           if (!o.entre || a() < 1 / 3) boite(m, bx + DX_DOUBLE * U, g + H_DOUBLE);
         }
         cx += o.np;
       });
       // après une bulle, de la place pour retomber du double saut (pas de piques juste après)
-      const l = Math.ceil(cx + (chaine ? 10 : 2));
+      const l = Math.ceil(cx + (chaine > 0 ? 10 : 2));
       sol(m, x, x + l * U, g);
       return { l, g };
     } },
