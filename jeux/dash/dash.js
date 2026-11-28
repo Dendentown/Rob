@@ -8,7 +8,8 @@
    montées, descentes, trous, plafonds à piques, tunnels, plateformes,
    tremplins, anneaux, doubles chemins, parties À L'ENVERS (au plafond),
    passages en VAISSEAU (triangle : appuyer = monter, relâcher = descendre ;
-   scies volantes, cubes en lévitation, couloirs serrés, portes laser, zigzags),
+   scies volantes, cubes en lévitation, couloirs serrés, portes laser, zigzags,
+   courants d'air, anneaux de vitesse, lasers horizontaux),
    et des pièges animés :
    cubes qui tombent, ascenseurs, dalles qui s'effondrent, portails de
    gravité, tapis roulants, murs à rebond, lasers alternés, pendules,
@@ -159,6 +160,7 @@
     if (ev.includes("glisse")) eclat(X_CUBE + U / 2, j.y + U, "#19f0ff", 12);
     if (ev.includes("choc")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 12); secousse = 0.15; }
     if (ev.includes("bloque") && Math.random() < 0.15) eclat(X_CUBE + U, j.y + U / 2, "#19f0ff", 2);
+    if (ev.includes("vitesse")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#3dff7a", 14); secousse = 0.08; }
     if (ev.includes("recul")) { eclat(X_CUBE + U / 2, j.y + U / 2, "#ff2bd6", 16); secousse = 0.25; }
     if (ev.includes("lache")) eclat(X_CUBE + U / 2, j.y + U / 2, "#ffe14d", 12);
     if (ev.includes("rebond")) eclat(X_CUBE + U, j.y + U / 2, "#3dff7a", 8);
@@ -505,6 +507,42 @@
       } else {
         ctx.fillStyle = "rgba(255,59,59,0.25)";
         for (let y = o.y1; y < o.y2; y += 8) ctx.fillRect(X + o.w / 2 - 1, y, 2, 4);
+      }
+    });
+    // courants d'air (vaisseau) : flèches qui défilent vers le haut ou vers le bas
+    monde.courants.forEach((o) => {
+      if (!visible(o)) return;
+      const X = versEcran(o.x), monte = o.f < 0, dec = ((t / 1000) * 90) % 40;
+      ctx.fillStyle = monte ? "rgba(25,240,255,0.07)" : "rgba(255,138,31,0.07)"; ctx.fillRect(X, o.y1, o.w, o.y2 - o.y1);
+      ctx.strokeStyle = monte ? "rgba(25,240,255,0.45)" : "rgba(255,138,31,0.45)"; ctx.lineWidth = 2;
+      ctx.save(); ctx.beginPath(); ctx.rect(X, o.y1, o.w, o.y2 - o.y1); ctx.clip();
+      for (let x = 15; x < o.w; x += 45) for (let y = -40; y < o.y2 - o.y1 + 40; y += 40) {
+        const yy = o.y1 + (monte ? y - dec : y + dec), px = X + x + ((y / 40) % 2) * 20;
+        ctx.beginPath();
+        if (monte) { ctx.moveTo(px - 6, yy + 6); ctx.lineTo(px, yy); ctx.lineTo(px + 6, yy + 6); }
+        else { ctx.moveTo(px - 6, yy - 6); ctx.lineTo(px, yy); ctx.lineTo(px + 6, yy - 6); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+    // anneaux de vitesse (vaisseau)
+    monde.anneauxV.forEach((o) => {
+      if (!visible(o) || j.vites.includes(o.id)) return;
+      const X = versEcran(o.x), p = 1 + Math.sin(t / 120 + o.x) * 0.06;
+      ctx.strokeStyle = "#3dff7a"; ctx.lineWidth = 4; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.ellipse(X, o.y, o.r * 0.35 * p, o.r * p, 0, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#3dff7a"; ctx.beginPath(); ctx.moveTo(X + 16, o.y); ctx.lineTo(X + 8, o.y - 6); ctx.lineTo(X + 8, o.y + 6); ctx.fill();
+    });
+    // lasers horizontaux (vaisseau)
+    monde.lasersH.forEach((o) => {
+      if (o.detruit || !visible(o)) return;
+      const X = versEcran(o.x), on = M.laserHActif(o, tj);
+      ctx.fillStyle = "#ff3b3b"; ctx.fillRect(X - 4, o.y - 6, 4, 12); ctx.fillRect(X + o.w, o.y - 6, 4, 12);
+      if (on) {
+        ctx.shadowColor = "#ff3b3b"; ctx.shadowBlur = 16; ctx.fillRect(X, o.y - 3, o.w, 6);
+        ctx.fillStyle = "#fff"; ctx.fillRect(X, o.y - 1, o.w, 2); ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = "rgba(255,59,59,0.25)"; for (let x = 0; x < o.w; x += 10) ctx.fillRect(X + x, o.y - 1, 5, 2);
       }
     });
     monde.scies.forEach((o) => {
