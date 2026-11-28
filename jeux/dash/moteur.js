@@ -1614,8 +1614,8 @@
     }
     for (const o of m.lasersH) { // laser horizontal allumé : choc
       if (o.suit) {
-        // il démarre 10 blocs AVANT la zone (il est déjà chargé quand on y entre) ; pendant la charge, il suit la hauteur du joueur
-        if (j.trig[o.id] == null && j.x + 10 * U > o.x && j.x < o.x + o.w) j.trig[o.id] = j.t;
+        // il démarre 0,6 s AVANT d'entrer dans la zone (quelle que soit la vitesse), il tire donc vers le milieu ; pendant la charge, il suit la hauteur du joueur
+        if (j.trig[o.id] == null && j.x + Math.max(3 * U, j.v * 0.6) > o.x && j.x < o.x + o.w) j.trig[o.id] = j.t;
         if (j.trig[o.id] == null || j.x > o.x + o.w) continue;
         const e = etatSuiveur(o, j);
         if (e.etat === "charge" || (e.etat === null && j.lazY[o.id] == null)) { j.lazY = Object.assign({}, j.lazY, { [o.id]: j.y + U / 2 }); continue; }
