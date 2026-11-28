@@ -399,6 +399,13 @@
         ctx.strokeRect(X + 1, r.y + 1, r.w - 2, r.h - 2); ctx.shadowBlur = 0;
         ctx.fillStyle = "#3dff7a";
         for (let y = r.y + r.h - 22; y > r.y; y -= 24) { ctx.beginPath(); ctx.moveTo(X + 4, y + 10); ctx.lineTo(X + 10, y); ctx.lineTo(X + 16, y + 10); ctx.lineTo(X + 13, y + 10); ctx.lineTo(X + 10, y + 5); ctx.lineTo(X + 7, y + 10); ctx.fill(); }
+      } else if (r.traverse) { // plateforme traversable par le bas : dessus lumineux, dessous en pointillés
+        ctx.fillStyle = "rgba(61,255,122,0.08)"; ctx.fillRect(X, r.y, r.w, r.h);
+        ctx.fillStyle = "#3dff7a"; ctx.shadowColor = "#3dff7a"; ctx.shadowBlur = 10; ctx.fillRect(X, r.y, r.w, 3); ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(61,255,122,0.6)"; ctx.lineWidth = 1; ctx.setLineDash([4, 5]);
+        ctx.beginPath(); ctx.moveTo(X, r.y + r.h); ctx.lineTo(X + r.w, r.y + r.h); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(61,255,122,0.5)";
+        for (let x = X + 10; x < X + r.w - 6; x += 24) { ctx.beginPath(); ctx.moveTo(x - 4, r.y + r.h - 2); ctx.lineTo(x, r.y + 6); ctx.lineTo(x + 4, r.y + r.h - 2); ctx.fill(); }
       } else {
         ctx.fillStyle = "#0c0424"; ctx.fillRect(X, r.y, r.w, r.h);
         ctx.strokeStyle = "#19f0ff"; ctx.lineWidth = 2; ctx.shadowColor = "#19f0ff"; ctx.shadowBlur = 8;
@@ -547,7 +554,7 @@
     });
     monde.scies.forEach((o) => {
       if (o.detruit || !visible(o)) return;
-      const X = versEcran(o.x), y = M.yScie(o, tj);
+      const X = versEcran(o.x), y = M.yScie(o, M.tPiege(o, j));
       ctx.strokeStyle = "rgba(255,43,214,0.2)"; ctx.setLineDash([3, 6]); ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(X, o.yc - o.amp); ctx.lineTo(X, o.yc + o.amp); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = "#ff2bd6"; ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 14;
@@ -558,7 +565,7 @@
     });
     monde.pendules.forEach((o) => {
       if (o.detruit || Math.abs(o.x - j.x) > W + o.L) return;
-      const b = M.posPendule(o, tj), X = versEcran(o.x), BX = versEcran(b.x);
+      const b = M.posPendule(o, M.tPiege(o, j)), X = versEcran(o.x), BX = versEcran(b.x);
       ctx.strokeStyle = "#8a7aa8"; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.moveTo(X, o.py); ctx.lineTo(BX, b.y); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = "#ff2bd6"; ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 14;

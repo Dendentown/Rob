@@ -22,8 +22,8 @@
   const U = 30, SOL = 360, H = 450, X_CUBE = 180;
   const G = 2600, SAUT = -820, SAUT_TREMPLIN = -1120;
   // Saut variable, progressif : tant qu'on garde appuyé en montant, la gravité est réduite de moitié.
-  // Appui bref ≈ 2,1 blocs, appui long (≈ 0,45 s) = 4,2 blocs ; la hauteur grandit doucement avec la durée.
-  const SAUT_V = -580, G_TENU = 0.5, SAUT_COUPE = -580;
+  // Appui bref ≈ 2,1 blocs, appui long = 3,1 blocs (réglé pour les sets de motifs) ; la hauteur grandit doucement avec la durée.
+  const SAUT_V = -580, G_TENU = 0.674, SAUT_COUPE = -580;
   const vitesseBase = (d) => 330 * (1 + 0.15 * Math.log(1 + d / 3000));
 
   function mulberry32(a) {
@@ -599,6 +599,733 @@
     } },
   ];
 
+  // ============================================================
+  //  SETS DE MOTIFS (8 sets × 10 motifs, réglés en simulation avec Denis)
+  //  Chaque motif est écrit en blocs depuis son début, sol au niveau 0.
+  //  Les positions horizontales sont mises à l'échelle de la vitesse du moment (k),
+  //  pour que les temps (fenêtres de saut) restent ceux réglés en simulation.
+  // ============================================================
+  function aides(m, x0, g0, k) {
+    const X = (x) => x0 + (x - x0) * k, W = (w) => w * k, id = () => m.id++, Y = (g) => yDe(g0 + g);
+    const h = {
+      m,
+      sol: (x1, x2, g) => m.rects.push({ id: id(), x: X(x1), y: Y(g), w: W(x2 - x1), h: H + 300 - Y(g), type: "sol" }),
+      pilier: (x, gb, n, w) => m.rects.push({ id: id(), x: X(x), y: Y(gb + n), w: W((w || 1) * U), h: n * U, type: "bloc" }),
+      pilierHaut: (x, gBas, w) => m.rects.push({ id: id(), x: X(x), y: -400, w: W((w || 1) * U), h: Y(gBas) + 400, type: "plafond" }),
+      dalle: (x1, x2, g) => m.rects.push({ id: id(), x: X(x1), y: Y(g), w: W(x2 - x1), h: 0.5 * U, type: "bloc", fixe: true }),
+      traverse: (x1, x2, g) => m.rects.push({ id: id(), x: X(x1), y: Y(g), w: W(x2 - x1), h: 0.5 * U, type: "bloc", fixe: true, traverse: true }),
+      pique: (x, g) => m.piques.push({ id: id(), x: X(x), y: Y(g), bas: false }),
+      piqueHaut: (x, gBas) => m.piques.push({ id: id(), x: X(x), y: Y(gBas), bas: true }),
+      bulle: (x, g) => m.bulles.push({ id: id(), x: X(x), y: Y(g) }),
+      objet: (x, g) => m.boites.push({ id: id(), x: X(x), y: Y(g) }),
+      scie: (x, g, amp, P, ph) => m.scies.push({ id: id(), x: X(x), yc: Y(g), amp: (amp || 0) * U, P: P || 2, ph: ph || 0, r: 14 }),
+      scieSync: (x, g, amp, P, ph, dist) => m.scies.push({ id: id(), x: X(x), yc: Y(g), amp: (amp || 0) * U, P: P || 2, ph: ph || 0, r: 14, sync: true, dist: (dist || 8) * U * k }),
+      pendule: (x, gPivot, L, amp, P, ph) => m.pendules.push({ id: id(), x: X(x), py: Y(gPivot), L: L * U, amp, P, ph: ph || 0, r: 13 }),
+      penduleSync: (x, gPivot, L, amp, P, ph, dist) => m.pendules.push({ id: id(), x: X(x), py: Y(gPivot), L: L * U, amp, P, ph: ph || 0, r: 13, sync: true, dist: (dist || 8) * U * k }),
+      tapis: (x1, x2, g, dir) => m.tapis.push({ id: id(), x: X(x1), w: W(x2 - x1), y: Y(g), dir }),
+      tremplin: (x, g) => m.tremplins.push({ id: id(), x: X(x), y: Y(g) }),
+      // motif « à choix » : on ne place que les emplacements tirés (v = liste d'indices)
+      place: (x, v, slots) => (v || []).forEach((i) => { const [c, g] = slots[i]; h.objet(x + c * U, g + 0.5); }),
+    };
+    return h;
+  }
+  const SETS = [];
+  SETS.push((function () { // set 1
+    return [
+      { nom: "Tour", f(h, x) {
+        h.sol(x, x + 15 * U, 0);
+        h.bulle(x + 3.5 * U, 3);
+        h.pilier(x + 9 * U, 0, 4);
+        return { l: 15, g: 0 };
+      } },
+      { nom: "Colonnade", f(h, x) {
+        h.sol(x, x + 16 * U, 0);
+        [[3, 1], [6, 2], [9, 1], [12, 2]].forEach(([c, n]) => h.pilier(x + c * U, 0, n));
+        [4, 5, 7, 8, 10, 11].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 16, g: 0 };
+      } },
+      { nom: "Bulle relais", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        h.bulle(x + 7 * U, 2.8);
+        h.sol(x + 12 * U, x + 15 * U, 0);
+        return { l: 15, g: 0 };
+      } },
+      { nom: "Peigne", f(h, x) {
+        h.sol(x, x + 19 * U, 0);
+        [3, 7, 11, 15].forEach((c) => h.pilier(x + c * U, 0, 2, 2));
+        [5, 6, 9, 10, 13, 14].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 19, g: 0 };
+      } },
+      { nom: "Ascenseur", f(h, x) {
+        h.sol(x, x + 16 * U, 0);
+        h.bulle(x + 3 * U, 2.8); h.bulle(x + 6.5 * U, 4.6);
+        h.pilier(x + 10 * U, 0, 5, 2);
+        h.objet(x + 11 * U, 6.2);
+        return { l: 16, g: 0 };
+      } },
+      { nom: "Portique", f(h, x) {
+        h.sol(x, x + 12 * U, 0);
+        h.pilier(x + 5 * U, 0, 1, 2); h.pilierHaut(x + 5 * U, 3.4, 2);
+        [3, 4, 7, 8].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 12, g: 0 };
+      } },
+      { nom: "Toboggan", f(h, x) {
+        h.sol(x, x + 18 * U, 0);
+        h.pilier(x + 1 * U, 0, 2, 2); h.pilier(x + 3 * U, 0, 3, 2); h.pilier(x + 7 * U, 0, 2, 2); h.pilier(x + 11 * U, 0, 1, 2);
+        [5, 6, 9, 10, 13, 14].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 18, g: 0 };
+      } },
+      { nom: "Choix", f(h, x) {
+        h.sol(x, x + 14 * U, 0);
+        h.pilier(x + 3 * U, 0, 1, 2); h.pilier(x + 9 * U, 0, 1, 2);
+        [5, 6, 7, 8].forEach((c) => h.pique(x + c * U, 0));
+        h.bulle(x + 6.5 * U, 3.4);
+        h.objet(x + 9.5 * U, 5.2);
+        return { l: 14, g: 0 };
+      } },
+      { nom: "Slalom", f(h, x) {
+        h.sol(x, x + 22 * U, 0);
+        h.pilier(x + 3 * U, 0, 1); h.pilierHaut(x + 8 * U, 2.2); h.pilier(x + 12 * U, 0, 1); h.pilierHaut(x + 17 * U, 2.2);
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Saut de l'ange", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        h.pilier(x, 0, 2, 2); h.pilier(x + 2 * U, 0, 3, 2);
+        h.bulle(x + 7 * U, 4); h.bulle(x + 13 * U, 4);
+        h.objet(x + 10.5 * U, 5);
+        h.sol(x + 18 * U, x + 22 * U, 0);
+        return { l: 22, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 2
+    return [
+      { nom: "Marelle", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [4, 10, 16].forEach((c) => h.pilier(x + c * U, 0, 1, 3));
+        h.sol(x + 22 * U, x + 25 * U, 0);
+        return { l: 25, g: 0 };
+      } },
+      { nom: "Rideau", f(h, x) {
+        h.sol(x, x + 19 * U, 0);
+        [4, 9, 14].forEach((c) => { h.pilierHaut(x + c * U, 3.4, 2); h.pique(x + (c + 0.5) * U, 0); });
+        return { l: 19, g: 0 };
+      } },
+      { nom: "Envol", f(h, x) {
+        h.sol(x, x + 17 * U, 0);
+        h.pilier(x + 2 * U, 0, 2, 2);
+        h.bulle(x + 7 * U, 3.4);
+        [6, 7, 8, 9, 10].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 17, g: 0 };
+      } },
+      { nom: "Pyramide", f(h, x) {
+        h.sol(x, x + 23 * U, 0);
+        [[2, 1], [5, 2], [8, 3], [11, 2], [14, 1]].forEach(([c, n]) => h.pilier(x + c * U, 0, n, 2));
+        [4, 7, 10, 13, 16].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 20, g: 0 };
+      } },
+      { nom: "Passerelles", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[3, 2], [10, 3], [17, 2]].forEach(([c, g]) => { h.dalle(x + c * U, x + (c + 5) * U, g); h.pique(x + (c + 2.5) * U, g); });
+        h.sol(x + 24 * U, x + 27 * U, 0);
+        return { l: 27, g: 0 };
+      } },
+      { nom: "Triple bulle", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[6, 2.8], [11, 3], [16, 2.8]].forEach(([c, g]) => h.bulle(x + c * U, g));
+        h.sol(x + 21 * U, x + 24 * U, 0);
+        return { l: 24, g: 0 };
+      } },
+      { nom: "Descente", f(h, x) {
+        h.sol(x, x + 7 * U, 0);
+        h.pilier(x + 1 * U, 0, 2, 4); h.pilier(x + 5 * U, 0, 4, 2);
+        h.bulle(x + 10 * U, 3.6); h.bulle(x + 15 * U, 2.4);
+        h.objet(x + 13 * U, 3.6);
+        h.sol(x + 18 * U, x + 22 * U, 0);
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Tunnel", f(h, x) {
+        h.sol(x, x + 23 * U, 0);
+        h.pilierHaut(x + 2 * U, 3.4, 19);
+        [5, 11, 17].forEach((c) => h.pilier(x + c * U, 0, 1));
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Catapulte", f(h, x) {
+        h.sol(x, x + 16 * U, 0);
+        h.tremplin(x + 3 * U, 0);
+        h.pilier(x + 9 * U, 0, 4, 3);
+        h.objet(x + 11.2 * U, 4.6);
+        return { l: 16, g: 0 };
+      } },
+      { nom: "Métronome", f(h, x) {
+        h.sol(x, x + 26 * U, 0);
+        [3, 12, 21].forEach((c) => h.pilier(x + c * U, 0, 2, 2));
+        [[5, 11], [14, 20]].forEach(([a, b]) => { for (let c = a; c <= b; c++) h.pique(x + c * U, 0); });
+        h.bulle(x + 8 * U, 3.6); h.bulle(x + 17 * U, 3.6);
+        return { l: 26, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 3
+    const esc = (h, x, c0, hauts, w) => hauts.forEach((n, i) => h.pilier(x + (c0 + i * (w || 2)) * U, 0, n, w || 2));
+    return [
+      { nom: "Escalier", f(h, x) {
+        h.sol(x, x + 22 * U, 0);
+        esc(h, x, 2, [1, 2, 3], 3);
+        [12, 13, 14, 15, 16].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Escalier à trous", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[4, 1], [8, 2], [12, 3], [16, 2]].forEach(([c, n]) => h.pilier(x + c * U, 0, n, 2));
+        h.sol(x + 20 * U, x + 23 * U, 0);
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Descente", f(h, x) {
+        h.sol(x, x + 20 * U, 0);
+        esc(h, x, 1, [2, 3, 2, 1]);
+        [9, 10, 11].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 20, g: 0 };
+      } },
+      { nom: "Mezzanine", f(h, x) {
+        h.sol(x, x + 24 * U, 0);
+        esc(h, x, 2, [1, 2]);
+        h.dalle(x + 7 * U, x + 19 * U, 3);
+        h.pique(x + 12.5 * U, 3);
+        [8, 10, 12, 14, 16].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 24, g: 0 };
+      } },
+      { nom: "Zigzag", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[3.5, 2], [9, 1], [14.5, 2]].forEach(([c, g]) => h.dalle(x + c * U, x + (c + 3) * U, g));
+        h.sol(x + 20 * U, x + 23 * U, 0);
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Échelle", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        h.dalle(x + 3.5 * U, x + 7 * U, 1);
+        h.dalle(x + 9 * U, x + 14 * U, 2.2); h.pique(x + 11 * U, 2.2);
+        h.bulle(x + 16 * U, 4);
+        h.dalle(x + 18 * U, x + 22 * U, 4.6); h.objet(x + 21 * U, 5.6);
+        h.sol(x + 22 * U, x + 30 * U, 0);
+        [23, 24, 25, 26].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 30, g: 0 };
+      } },
+      { nom: "Balcon", f(h, x) {
+        h.sol(x, x + 10 * U, 0);
+        esc(h, x, 1, [1, 2, 3], 3);
+        h.objet(x + 13 * U, 5);
+        h.dalle(x + 15 * U, x + 19 * U, 1);
+        h.sol(x + 20 * U, x + 23 * U, 0);
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Deux étages", f(h, x) {
+        h.sol(x, x + 26 * U, 0);
+        h.pilier(x + 2 * U, 0, 1, 2);
+        h.dalle(x + 5 * U, x + 15 * U, 3);
+        h.bulle(x + 17 * U, 4.2); h.bulle(x + 20 * U, 4.8);
+        h.objet(x + 22.5 * U, 5.4);
+        // voie basse : piques en rythme court · court · long
+        [7, 10, 15].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Escalier-pont", f(h, x) {
+        h.sol(x, x + 26 * U, 0);
+        esc(h, x, 1, [1, 2, 3]);
+        h.bulle(x + 10 * U, 4.6);
+        h.objet(x + 12.5 * U, 5.6);
+        h.dalle(x + 14 * U, x + 21 * U, 3.6);
+        [10, 13, 16, 19].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Remparts", f(h, x) {
+        h.sol(x, x + 26 * U, 0);
+        h.pilier(x + 2 * U, 0, 2, 2);
+        [[6, 9], [12, 15], [18, 21]].forEach(([a, b]) => h.dalle(x + a * U, x + b * U, 2.6));
+        for (let c = 5; c <= 21; c++) h.pique(x + c * U, 0);
+        return { l: 26, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 4
+    const esc = (h, x, c0, hauts, w) => hauts.forEach((n, i) => h.pilier(x + (c0 + i * (w || 3)) * U, 0, n, w || 3));
+    return [
+      { nom: "Escalier gardé", f(h, x) {
+        h.sol(x, x + 22 * U, 0);
+        esc(h, x, 1, [1, 2, 3]);
+        h.scieSync(x + 5.5 * U, 3.6, 1.2, 1.6, 4.8, 8);   // synchronisée : en plein sur le chemin           // monte et descend au-dessus de la 2e marche
+        [11, 12, 13].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Balancier", f(h, x) {
+        h.sol(x, x + 10 * U, 0);
+        esc(h, x, 1, [1, 2, 3]);
+        h.bulle(x + 13 * U, 4);
+        h.pendule(x + 19.5 * U, 7.4, 2.8, 0.6, 2.4);
+        h.dalle(x + 18 * U, x + 22 * U, 2);
+        h.sol(x + 23 * U, x + 27 * U, 0);
+        return { l: 27, g: 0 };
+      } },
+      { nom: "Sous la scie", f(h, x) {
+        h.sol(x, x + 10 * U, 0);
+        esc(h, x, 1, [1, 2, 3]);
+        h.bulle(x + 12 * U, 4.2);
+        h.scie(x + 15.5 * U, 6.6, 0.3, 1.6);
+        h.dalle(x + 16 * U, x + 21 * U, 4);
+        h.sol(x + 21 * U, x + 26 * U, 0);
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Ascension", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[3, 1.5], [9, 3], [15, 4.5]].forEach(([c, g]) => h.dalle(x + c * U, x + (c + 3) * U, g));
+        h.scie(x + 7.5 * U, 2, 0.5, 2.2); h.scie(x + 13.5 * U, 3.5, 0.5, 2.2, 1.6);
+        h.objet(x + 17 * U, 6);
+        h.sol(x + 21 * U, x + 25 * U, 0);
+        return { l: 25, g: 0 };
+      } },
+      { nom: "Rampe de bulles", f(h, x) {
+        h.sol(x, x + 8 * U, 0);
+        esc(h, x, 1, [1, 2]);
+        h.bulle(x + 9.5 * U, 3.2); h.bulle(x + 12.5 * U, 4.2);
+        h.dalle(x + 15 * U, x + 23 * U, 3.8);
+        h.scie(x + 19 * U, 6.2, 0.4, 2);
+        h.objet(x + 22 * U, 5);
+        h.sol(x + 23 * U, x + 28 * U, 0);
+        return { l: 28, g: 0 };
+      } },
+      { nom: "Double tranchant", f(h, x) {
+        h.sol(x, x + 23 * U, 0);
+        [[1, 1], [5, 2], [9, 3], [13, 2]].forEach(([c, n]) => h.pilier(x + c * U, 0, n, 3));
+        h.scie(x + 2.5 * U, 1.6, 0.15, 2);   // basse : grand saut par-dessus
+        h.scie(x + 6.5 * U, 4.6, 0.15, 2);   // haute : petit saut en dessous
+        h.scie(x + 10.5 * U, 3.6, 0.15, 2);  // basse
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Scie-ascenseur", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        h.dalle(x + 3 * U, x + 8 * U, 2); h.dalle(x + 12 * U, x + 17 * U, 2);
+        h.scieSync(x + 10 * U, 3.5, 1.6, 1.6, 5.4, 8);
+        h.sol(x + 19 * U, x + 22 * U, 0);
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Couloir de scies", f(h, x) {
+        h.sol(x, x + 26 * U, 0);
+        esc(h, x, 1, [1, 2]);
+        h.dalle(x + 7 * U, x + 21 * U, 2);
+        h.scieSync(x + 11 * U, 3.2, 1.1, 1.6, 3.6, 8); h.scieSync(x + 16 * U, 3.2, 1.1, 1.6, 3.6 + 3.14, 8);
+        [9, 12, 15, 18].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 26, g: 0 };
+      } },
+      { nom: "La cage", f(h, x) {
+        h.sol(x, x + 26 * U, 0);
+        h.pilier(x + 2 * U, 0, 1, 3);
+        h.dalle(x + 7 * U, x + 16 * U, 2.6);
+        h.scie(x + 9.5 * U, 4.7, 0.2, 2);          // scie d'entrée, au-dessus de la plateforme
+        h.scie(x + 16.5 * U, 1.6, 0.3, 2, 3.14);   // scie de sortie, sous le bout de la plateforme
+        h.bulle(x + 15 * U, 4.6); h.objet(x + 18 * U, 5.6);
+        [9, 11, 13, 15].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Grand final", f(h, x) {
+        h.sol(x, x + 8 * U, 0);
+        esc(h, x, 1, [1, 2]);
+        h.bulle(x + 9.5 * U, 3.8);
+        h.dalle(x + 11 * U, x + 16 * U, 3.5);
+        h.bulle(x + 18 * U, 5);
+        h.scie(x + 20.5 * U, 7.2, 0.5, 2);
+        h.objet(x + 20.5 * U, 5.8);
+        h.sol(x + 11 * U, x + 30 * U, 0);
+        [12, 13, 14, 15].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 30, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 5
+    const D = (h, x, a, b, g) => h.dalle(x + a * U, x + b * U, g);
+    return [
+      { nom: "Archipel", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [5, 11, 17].forEach((c) => D(h, x, c, c + 3, 1));
+        h.sol(x + 23 * U, x + 26 * U, 0);
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Vague", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[4, 1], [9.5, 2.6], [15, 1], [20.5, 2.6]].forEach(([c, g]) => D(h, x, c, c + 3, g));
+        h.sol(x + 26 * U, x + 29 * U, 0);
+        return { l: 29, g: 0 };
+      } },
+      { nom: "Dalle piégée", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 4, 20, 1.5);
+        h.pique(x + 9 * U, 1.5); h.pique(x + 15 * U, 1.5);
+        h.sol(x + 22 * U, x + 25 * U, 0);
+        return { l: 25, g: 0 };
+      } },
+      { nom: "Relais", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 4, 8, 1.5);
+        h.bulle(x + 11 * U, 3.4);
+        D(h, x, 14, 18, 2);
+        h.bulle(x + 21 * U, 3.8);
+        h.objet(x + 24 * U, 4.6);
+        h.sol(x + 27 * U, x + 30 * U, 0);
+        return { l: 30, g: 0 };
+      } },
+      { nom: "Yo-yo", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 3, 7, 2);
+        h.bulle(x + 10 * U, 1.6);          // tout en bas : on s'y laisse tomber, puis on rappuie
+        h.objet(x + 12.5 * U, 3.6);
+        D(h, x, 15, 19, 2.5);
+        h.sol(x + 21 * U, x + 24 * U, 0);
+        return { l: 24, g: 0 };
+      } },
+      { nom: "Saut de puce", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [4.5, 8, 11.5, 15].forEach((c) => D(h, x, c, c + 1.5, 1));
+        h.sol(x + 18.5 * U, x + 22 * U, 0);
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Navette", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 3, 27, 1);
+        D(h, x, 10, 16, 3.6); D(h, x, 19, 26, 3.6);
+        [12, 13, 14, 15, 16].forEach((c) => h.pique(x + c * U, 1));   // en bas : il faut monter
+        h.pique(x + 22 * U, 3.6);                                    // en haut ensuite : il faut redescendre
+        h.objet(x + 17.5 * U, 4.4);
+        h.sol(x + 29 * U, x + 32 * U, 0);
+        return { l: 32, g: 0 };
+      } },
+      { nom: "Rebond", f(h, x) {
+        h.sol(x, x + 8 * U, 0);
+        h.tremplin(x + 4 * U, 0);
+        D(h, x, 9, 19, 4);
+        h.pique(x + 14 * U, 4);
+        h.objet(x + 17 * U, 5);
+        h.sol(x + 8 * U, x + 24 * U, 0);
+        [9, 11, 13, 15, 17].forEach((c) => h.pique(x + c * U, 0));
+        return { l: 24, g: 0 };
+      } },
+      { nom: "Pont suspendu", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 4, 9, 1.5); D(h, x, 13, 18, 1.5);
+        h.penduleSync(x + 11 * U, 6.5, 3, 0.6, 2.2, 0.8, 8);
+        h.sol(x + 20 * U, x + 23 * U, 0);
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Plongeon", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        h.bulle(x + 4 * U, 2.6);
+        D(h, x, 6, 10, 3.6);
+        D(h, x, 13, 16, 2.3); D(h, x, 19, 22, 1);
+        h.objet(x + 11.5 * U, 4);
+        h.sol(x + 24 * U, x + 27 * U, 0);
+        return { l: 27, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 6
+    // Motifs à choix : plateformes traversables par le bas, 2 objets au hasard parmi 3 emplacements
+    // (variante k = on ne place que l'emplacement k, pour vérifier qu'il est atteignable ; -1 = aucun)
+    const A = 1, B = 3.7, C = 6.5;
+    const a = 1.2, b = 2.6, c = 4.0; // niveaux des motifs SANS choix (plateformes pleines)
+    const T = (h, x, a, b, g) => h.traverse(x + a * U, x + b * U, g);
+    const D = (h, x, a, b, g) => h.dalle(x + a * U, x + b * U, g);
+    let PH = 0; // phase du pendule de « Trois couloirs » (réglée par balayage)
+    return [
+      { nom: "Étagère", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 3 * U, 0);
+        T(h, x, 4, 20, A); T(h, x, 6, 20, B); T(h, x, 8, 20, C);
+        h.pique(x + 11 * U, A); h.pique(x + 12 * U, A); h.pique(x + 15 * U, B);
+        h.place(x, v, [[17.5, A], [11, B], [14, C]]);
+        h.sol(x + 22 * U, x + 26 * U, 0);
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Cascade", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        h.bulle(x + 4 * U, 3);
+        D(h, x, 6, 14, c); D(h, x, 13, 20, b); D(h, x, 19, 26, a);
+        h.pique(x + 11 * U, c); h.pique(x + 17 * U, b); h.pique(x + 23 * U, a);
+        h.sol(x + 28 * U, x + 31 * U, 0);
+        return { l: 31, g: 0 };
+      } },
+      { nom: "Aiguillage", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 2 * U, 0);
+        T(h, x, 2, 7, A); T(h, x, 9, 14, B);   // au bout : sauter vers le haut ou se laisser tomber
+        T(h, x, 14.5, 22, C); T(h, x, 14.5, 25, A);
+        h.pique(x + 18 * U, A);
+        h.place(x, v, [[11, B], [20, C], [22.5, A]]);
+        h.sol(x + 27 * U, x + 31 * U, 0);
+        return { l: 31, g: 0 };
+      } },
+      { nom: "Mille-feuille", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 2 * U, 0);
+        T(h, x, 3, 24, A); T(h, x, 3, 24, C);
+        T(h, x, 7, 9, B); T(h, x, 12.5, 14.5, B);
+        [10, 11, 17].forEach((c) => h.pique(x + c * U, A));
+        h.pique(x + 21 * U, C);
+        h.place(x, v, [[15, A], [13.5, B], [18.5, C]]);
+        h.sol(x + 26 * U, x + 30 * U, 0);
+        return { l: 30, g: 0 };
+      } },
+      { nom: "Montée en bulles", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 3, 7, a); h.bulle(x + 9 * U, 2.2);
+        D(h, x, 11, 14, b); h.bulle(x + 16 * U, 3.6);
+        D(h, x, 18, 22, c); h.objet(x + 21 * U, c + 0.5);
+        h.sol(x + 24 * U, x + 28 * U, 0);
+        return { l: 28, g: 0 };
+      } },
+      { nom: "Trois couloirs", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 33 * U, 0);
+        T(h, x, 2, 16, A); T(h, x, 4.5, 16, B); T(h, x, 7.5, 16, C);
+        T(h, x, 19, 27, A); T(h, x, 19, 27, B); T(h, x, 19, 27, C);
+        [17, 18].forEach((c) => h.pique(x + c * U, 0));
+        h.pique(x + 23 * U, A);
+        h.penduleSync(x + 17.5 * U, 9.8, 4.8, 0.6, 2.2, PH, 8);
+        h.place(x, v, [[20.5, A], [22.5, B], [22, C]]);
+        return { l: 33, g: 0 };
+      } },
+      { nom: "Tisserand", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 2 * U, 0);
+        T(h, x, 3, 8, A); T(h, x, 10, 17, B); T(h, x, 12, 17, C);
+        [13, 14, 15].forEach((c) => h.pique(x + c * U, B));
+        T(h, x, 16, 24, A); T(h, x, 23, 28, B);
+        h.place(x, v, [[15, C], [20, A], [26.5, B]]);
+        h.sol(x + 30 * U, x + 33 * U, 0);
+        return { l: 33, g: 0 };
+      } },
+      { nom: "Catapulte", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 12 * U, 0);
+        h.tremplin(x + 3 * U, 0);
+        T(h, x, 6, 21, C); T(h, x, 13, 24, A);
+        h.pique(x + 16 * U, A); h.pique(x + 19 * U, A);
+        T(h, x, 26, 29, B);
+        h.place(x, v, [[15, C], [21.5, A], [27.5, B]]);
+        h.sol(x + 31 * U, x + 35 * U, 0);
+        return { l: 35, g: 0 };
+      } },
+      { nom: "Arche", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[3, a], [8, b], [13, c], [18, b], [23, a]].forEach(([c, g]) => D(h, x, c, c + 3, g));
+        h.objet(x + 14.5 * U, c + 1.5);
+        h.sol(x + 28 * U, x + 31 * U, 0);
+        return { l: 31, g: 0 };
+      } },
+      { nom: "Perchoir", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 3, 7, a); D(h, x, 10, 11.5, b); D(h, x, 15, 19, c);
+        h.objet(x + 13 * U, c);
+        h.sol(x + 21 * U, x + 25 * U, 0);
+        return { l: 25, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 7
+    const A = 1, B = 3.7;
+    const D = (h, x, a, b, g) => h.dalle(x + a * U, x + b * U, g);
+    const Tr = (h, x, a, b, g) => h.traverse(x + a * U, x + b * U, g);
+    const tap = (h, x, a, b, g, d) => h.tapis(x + a * U, x + b * U, g, d);
+    return [
+      { nom: "Lance-pierre", f(h, x) {
+        h.sol(x, x + 10 * U, 0); tap(h, x, 2, 10, 0, 1);
+        h.objet(x + 14.5 * U, 3.2);
+        h.sol(x + 19 * U, x + 23 * U, 0);   // trou de 9 blocs : impossible sans l'élan du tapis
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Ralenti", f(h, x) {
+        h.sol(x, x + 20 * U, 0); tap(h, x, 3, 18, 0, -1);
+        h.pique(x + 8 * U, 0); h.pique(x + 14 * U, 0);
+        h.objet(x + 14.5 * U, 1.8);
+        return { l: 20, g: 0 };
+      } },
+      { nom: "Coup de frein", f(h, x) {
+        h.sol(x, x + 26 * U, 0); tap(h, x, 2, 11, 0, 1); tap(h, x, 11, 24, 0, -1);
+        h.pique(x + 8 * U, 0); h.objet(x + 8.5 * U, 2.4);
+        h.pique(x + 20 * U, 0);
+        return { l: 26, g: 0 };
+      } },
+      { nom: "Plateformes roulantes", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 3, 8, 1.5); tap(h, x, 3, 8, 1.5, 1);
+        h.objet(x + 11.5 * U, 3.2);
+        D(h, x, 15, 19, 2); tap(h, x, 15, 19, 2, 1);
+        h.sol(x + 27 * U, x + 31 * U, 0);
+        return { l: 31, g: 0 };
+      } },
+      { nom: "Attente", f(h, x) {
+        h.sol(x, x + 20 * U, 0); tap(h, x, 4, 13, 0, -1);
+        h.scieSync(x + 15 * U, 1.6, 1.3, 1.8, 0, 9);
+        return { l: 20, g: 0 };
+      } },
+      { nom: "Contre-courant", emplacements: 3, f(h, x, g, v) {
+        const H = 4.2; // voie haute : hors de portée depuis le sol
+        h.sol(x, x + 28 * U, 0); tap(h, x, 6, 26, 0, -1);
+        Tr(h, x, 2, 6, 1.5);
+        Tr(h, x, 6, 13, H); tap(h, x, 6, 13, H, 1);
+        Tr(h, x, 18, 26, H); tap(h, x, 18, 26, H, 1);
+        h.penduleSync(x + 15.5 * U, 4.5, 3.6, 0.7, 2, 0, 9);
+        h.place(x, v, [[22, 0], [15.5, 6], [23, H]]);
+        return { l: 28, g: 0 };
+      } },
+      { nom: "Escalier roulant", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        [[2, 1], [8, 2.2], [14, 3.4]].forEach(([c, g]) => { D(h, x, c, c + 3, g); tap(h, x, c, c + 3, g, 1); });
+        h.objet(x + 20 * U, 5);
+        h.sol(x + 24 * U, x + 28 * U, 0);
+        return { l: 28, g: 0 };
+      } },
+      { nom: "Accordéon", f(h, x) {
+        h.sol(x, x + 32 * U, 0);
+        tap(h, x, 1, 8, 0, 1); tap(h, x, 8, 13, 0, -1); tap(h, x, 13, 20, 0, 1); tap(h, x, 20, 30, 0, -1);
+        h.pique(x + 5.5 * U, 0); h.pique(x + 17 * U, 0); h.pique(x + 27 * U, 0);
+        h.objet(x + 17.5 * U, 2.4);
+        return { l: 32, g: 0 };
+      } },
+      { nom: "Recul", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        D(h, x, 3, 10, 1.5); tap(h, x, 3, 10, 1.5, -1); h.pique(x + 6.5 * U, 1.5);
+        D(h, x, 12, 15, 1.5); tap(h, x, 12, 15, 1.5, 1); h.objet(x + 14 * U, 2.5);
+        h.sol(x + 21 * U, x + 25 * U, 0);
+        return { l: 25, g: 0 };
+      } },
+      { nom: "Envol final", f(h, x) {
+        h.sol(x, x + 9 * U, 0);
+        h.pilier(x, 0, 1.5, 4); h.pilier(x + 4 * U, 0, 3, 5); tap(h, x, 4, 9, 3, 1);
+        h.bulle(x + 14 * U, 4.5); h.objet(x + 17 * U, 5.2);
+        h.sol(x + 26 * U, x + 30 * U, 0);
+        return { l: 30, g: 0 };
+      } },
+    ];
+  })());
+  SETS.push((function () { // set 8
+    const bulles = (h, x, l) => l.forEach(([c, g]) => h.bulle(x + c * U, g));
+    return [
+      { nom: "Pont de bulles", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[5, 2.6], [9.5, 2.6], [14, 2.6], [18.5, 2.6]]);
+        h.objet(x + 11.75 * U, 3.8);
+        h.sol(x + 23 * U, x + 27 * U, 0);
+        return { l: 27, g: 0 };
+      } },
+      { nom: "Montée", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[5, 2.2], [9, 3.2], [13, 4.2], [17, 5.2]]);
+        h.objet(x + 19.5 * U, 6.4);
+        h.sol(x + 25 * U, x + 29 * U, 0);
+        return { l: 29, g: 0 };
+      } },
+      { nom: "Plafond de scies", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[6, 2.4], [11, 2.4], [16, 2.4]]);
+        h.scie(x + 8.5 * U, 5.2, 0.15, 2); h.scie(x + 13.5 * U, 5.2, 0.15, 2, 3.14);
+        h.objet(x + 13.5 * U, 3.6);
+        h.sol(x + 21 * U, x + 25 * U, 0);
+        return { l: 25, g: 0 };
+      } },
+      { nom: "Zigzag", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[5, 1.8], [9, 3.8], [13, 1.8], [17, 3.8], [21, 1.8]]);
+        h.objet(x + 15 * U, 3.4);
+        h.sol(x + 25 * U, x + 29 * U, 0);
+        return { l: 29, g: 0 };
+      } },
+      { nom: "Scies battantes", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[5, 2.6], [10, 2.6], [15, 2.6]]);
+        h.scieSync(x + 7.5 * U, 2.6, 1.4, 1.6, 0, 7); h.scieSync(x + 12.5 * U, 2.6, 1.4, 1.6, 0, 7);
+        h.objet(x + 10 * U, 4);
+        h.sol(x + 20 * U, x + 24 * U, 0);
+        return { l: 24, g: 0 };
+      } },
+      { nom: "Deux chemins", emplacements: 3, f(h, x, g, v) {
+        h.sol(x, x + 23 * U, 0);
+        [6, 9.5, 13, 16.5].forEach((c) => h.pique(x + c * U, 0));
+        bulles(h, x, [[5, 3.6], [9.5, 4.6], [14, 4.6]]);
+        h.place(x, v, [[11.2, 0], [11.8, 5.6], [20, 0]]);
+        return { l: 23, g: 0 };
+      } },
+      { nom: "Yo-yo", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[5, 3], [10, 0.8], [15, 3.4]]);
+        h.objet(x + 12.5 * U, 3.4);
+        h.sol(x + 20 * U, x + 24 * U, 0);
+        return { l: 24, g: 0 };
+      } },
+      { nom: "Saut de foi", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[5, 2.4], [13, 2.4]]);
+        h.scie(x + 9 * U, 1.2, 0.2, 2);
+        h.objet(x + 9 * U, 4.4);
+        h.sol(x + 18 * U, x + 22 * U, 0);
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Tapis de piques", f(h, x) {
+        h.sol(x, x + 22 * U, 0);
+        for (let c = 5; c <= 17; c++) h.pique(x + c * U, 0);
+        bulles(h, x, [[6.5, 2.4], [10.5, 3], [14.5, 2.4]]);
+        h.objet(x + 12.5 * U, 4.2);
+        return { l: 22, g: 0 };
+      } },
+      { nom: "Grand huit", f(h, x) {
+        h.sol(x, x + 2 * U, 0);
+        bulles(h, x, [[4.5, 2], [8, 3.4], [11.5, 4.6], [17, 3.4], [20.5, 2]]);
+        h.scieSync(x + 14.25 * U, 6.6, 0.6, 1.6, 0, 8);
+        h.objet(x + 14.25 * U, 5);
+        h.sol(x + 25 * U, x + 29 * U, 0);
+        return { l: 29, g: 0 };
+      } },
+    ];
+  })());
+  // zones tampon (passages simples qui temporisent entre les motifs) et situations spéciales gardées
+  const TAMPONS = ["montee", "descente", "multi-trous", "slalom"];
+  const SITUATIONS = ["souterrain", "eboulement", "ascenseurs", "effondrement", "mur-rebond", "lasers", "pendules", "porte", "deux-voies", "sombre", "tremplin", "anneau"];
+  let infosFaites = false;
+  function infosMotifs() { // hauteur de chaque motif, et s'il peut servir dans une partie à l'envers
+    if (infosFaites) return; infosFaites = true;
+    SETS.forEach((set, s) => set.forEach((mo) => {
+      const t = mondeTemp({ id: 0 });
+      mo.f(aides(t, 0, 0, 1), 0, 0, mo.emplacements ? [...Array(mo.emplacements).keys()] : []);
+      let haut = 0; const niv = (y) => (SOL - y) / U;
+      t.rects.forEach((r) => { if (r.type !== "sol" && r.type !== "plafond") haut = Math.max(haut, niv(r.y)); });
+      t.bulles.concat(t.boites).forEach((b) => (haut = Math.max(haut, niv(b.y))));
+      t.scies.forEach((o) => (haut = Math.max(haut, niv(o.yc - o.amp))));
+      if (t.tremplins.length) haut = Math.max(haut, 8);
+      mo.haut = haut; mo.set = s;
+      mo.enversOk = !["tapis", "scies", "pendules", "tremplins", "mobiles", "lasers"].some((k) => t[k].length) && !t.rects.some((r) => r.traverse);
+    }));
+  }
+  const deuxParmi = (n, a) => { const i = (a() * n) | 0, j = (i + 1 + ((a() * (n - 1)) | 0)) % n; return [i, j]; };
+  // Choix du prochain passage : surtout des motifs, en changeant de set à chaque fois (jamais deux fois
+  // le même passage d'affilée), avec de temps en temps une zone tampon ou une situation spéciale.
+  function choisirPassage(m, d, envers) {
+    infosMotifs();
+    const a = m.alea, der = m.dernierPassage || {};
+    const ok = (c) => c.min <= d && (!c.possible || c.possible(m.g)) && c.nom !== der.nom;
+    const motifsDe = (s) => SETS[s].filter((mo) => mo.nom !== der.nom && m.g + mo.haut <= 7.6 && (!envers || mo.enversOk));
+    const sets = SETS.map((_, s) => s).filter((s) => s !== der.set && motifsDe(s).length);
+    const tampons = MORCEAUX.filter((c) => TAMPONS.includes(c.nom) && ok(c));
+    const situations = envers ? [] : MORCEAUX.filter((c) => SITUATIONS.includes(c.nom) && ok(c));
+    const r = a();
+    let type = "motif";
+    if (der.type !== "tampon" && tampons.length && (r < 0.18 || !sets.length)) type = "tampon";
+    else if (der.type !== "situation" && situations.length && (r < 0.4 || !sets.length)) type = "situation";
+    else if (!sets.length) type = tampons.length ? "tampon" : "situation";
+    let choix = null, motif = null, set = der.set;
+    if (type === "motif") {
+      set = sets[(a() * sets.length) | 0];
+      const l = motifsDe(set); motif = l[(a() * l.length) | 0];
+    } else {
+      let l = type === "tampon" ? tampons : situations;
+      if (!l.length) l = MORCEAUX.filter((c) => TAMPONS.includes(c.nom) && (!c.possible || c.possible(m.g)));
+      let t = a() * l.reduce((s, c) => s + c.poids, 0); choix = l[0];
+      for (const c of l) { t -= c.poids; if (t <= 0) { choix = c; break; } }
+    }
+    m.dernierPassage = { type, nom: motif ? motif.nom : choix.nom, set };
+    return { choix, motif };
+  }
+
   // Étend le monde jusqu'à l'abscisse xMax
   // Plateformes volantes (qui ne reposent ni sur le sol ni sur un autre bloc) : indestructibles,
   // sinon on ne pourrait plus passer certains obstacles (vide en dessous, étage du haut…)
@@ -620,10 +1347,7 @@
         sol(m, m.xGen, m.xGen + 40 * U, m.g); m.xGen += 40 * U; break;
       }
       const envers = m.envers > 0;
-      const speciaux = ["envers", "vaisseau"];
-      const dispo = MORCEAUX.filter((c) => c.min <= d && (!c.possible || c.possible(m.g)) && (envers ? ENVERS_OK.includes(c.nom) : !(m.speciales && speciaux.includes(c.nom))));
-      let r = m.alea() * dispo.reduce((s, c) => s + c.poids, 0), choix = dispo[0];
-      for (const c of dispo) { r -= c.poids; if (r <= 0) { choix = c; break; } }
+      let choix = null, motif = null;
       // partie spéciale ? (pas trop près de l'arrivée ; jamais la même que la précédente)
       if (!envers && m.speciales && d >= m.prochaineSpeciale && m.fin / U - d > 90) {
         const nom = m.derniereSpeciale === "vaisseau" ? "envers" : m.derniereSpeciale === "envers" ? "vaisseau" : m.alea() < 0.5 ? "envers" : "vaisseau";
@@ -633,10 +1357,24 @@
         if (nom === "vaisseau") m.longVaisseau = Math.round(long); else m.longEnvers = Math.round(long);
         m.prochaineSpeciale = d + long + 90 + m.alea() * 120; // puis du normal : 90 à 210 blocs (≈ 150 en moyenne)
       }
-      m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
+      if (!choix) ({ choix, motif } = choisirPassage(m, d, envers));
+      const derRep = m.reperes[m.reperes.length - 1];
+      if (motif) {
+        // un motif demande de l'élan : 3 blocs de plat de plus avant lui, et le point de reprise est AVANT ce plat
+        // (on ne repart jamais à l'arrêt au pied du motif)
+        if (derRep && derRep.nom === "plat" && derRep.inv === envers && derRep.g === m.g) derRep.nom = motif.nom;
+        else m.reperes.push({ x: m.xGen, g: m.g, nom: motif.nom, inv: envers });
+        if (envers) solHaut(m, m.xGen, m.xGen + 3 * U, m.g); else sol(m, m.xGen, m.xGen + 3 * U, m.g);
+        m.xGen += 3 * U;
+      } else m.reperes.push({ x: m.xGen, g: m.g, nom: choix.nom, inv: envers });
       const tm = envers ? mondeTemp(m) : m;
       const debut = tm.rects.length;
-      const res = choix.f(tm, m.xGen, m.g, m.alea);
+      let res;
+      if (motif) {
+        const k = vitesseBase(m.xGen) / 330;   // à la vitesse du moment, tout s'allonge d'autant : les temps restent les mêmes
+        const r = motif.f(aides(tm, m.xGen, m.g, k), m.xGen, 0, motif.emplacements ? deuxParmi(motif.emplacements, m.alea) : []);
+        res = { l: r.l * k, g: m.g + (r.g || 0) };
+      } else res = choix.f(tm, m.xGen, m.g, m.alea);
       marquerVolantes(tm.rects, debut);
       if (envers) retourner(m, tm);
       m.xGen += res.l * U; m.g = res.g;
@@ -720,6 +1458,8 @@
   const yScie = (o, t) => o.yc + o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
   const laserHActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > -0.2;
   const laserActif = (o, t) => o.toujours || Math.sin((2 * Math.PI * t) / o.P + o.ph) > 0.15;
+  // temps propre d'un piège : celui du joueur, ou (piège synchronisé) le temps depuis son déclenchement
+  function tPiege(o, j) { return o.sync ? (j.trig[o.id] == null ? 0 : j.t - j.trig[o.id]) : j.t; }
   function posPendule(o, t) {
     const th = o.amp * Math.sin((2 * Math.PI * t) / o.P + o.ph);
     return { x: o.x + o.L * Math.sin(th), y: o.py + o.L * Math.cos(th) };
@@ -745,6 +1485,9 @@
     const presse = appui && !j.prec; j.prec = appui;
     ["boost", "lent", "stun", "inv", "elanT"].forEach((k) => { if (j[k] > 0) j[k] = Math.max(0, j[k] - dt); });
     if (j.croc) { balancer(j, m, dt, ev); if (j.croc) { if (j.x >= m.fin) ev.push("fini"); return ev; } }
+    // scies et pendules synchronisés : ils démarrent quand le joueur arrive à o.dist pixels
+    for (const o of m.scies) if (o.sync && j.trig[o.id] == null && o.x - j.x < o.dist) j.trig[o.id] = j.t;
+    for (const o of m.pendules) if (o.sync && j.trig[o.id] == null && o.x - j.x < o.dist) j.trig[o.id] = j.t;
     // déclencheurs : cubes qui tombent quand on arrive
     for (const o of m.tombants) {
       if (j.trig[o.id] == null && o.x > j.x && (o.x - j.x) / Math.max(j.v, 60) < CHUTE_DELAI) j.trig[o.id] = j.t;
@@ -752,7 +1495,7 @@
     // vitesse horizontale : remonte vers la vitesse de croisière
     const cible = j.stun > 0 ? 0 : Math.max(vitesseCroisiere(j), j.elanT > 0 ? j.elanV : 0);
     if (j.v < cible) j.v = Math.min(cible, j.v + ACCEL * (j.boost > 0 ? 2.5 : 1) * (j.tapis > 0 ? 2 : 1) * dt);
-    else j.v = Math.max(cible, j.v - ACCEL * 2 * dt);
+    else if (j.sol || j.mode === "vaisseau" || j.stun > 0) j.v = Math.max(cible, j.v - ACCEL * 2 * dt); // en l'air (cube), on garde l'élan d'un tapis rapide
     if (j.tirage) { // tiré par le grappin vers un adversaire : accélération croissante
       const q = j.tirage; q.t += dt; const f = Math.min(1, q.t / q.d);
       j.v = q.v0 + (q.vmax - q.v0) * f * f;
@@ -789,6 +1532,7 @@
         continue;
       }
       const dessus = ya + U <= r.y + 12 && j.vy >= (r.type === "mobile" ? -200 : 0);
+      if (r.traverse && !dessus) continue; // plateforme traversable par le bas : on ne s'y pose que par le dessus
       const dessous = ya >= r.y + r.h - 12 && j.vy <= 0;
       if (dessus && !(s < 0 && j.vy < 0)) { j.y = r.y - U; j.vy = 0; if (s > 0) j.sol = true; else ev.push("cogne"); }
       else if (dessous) { j.y = r.y + r.h; j.vy = 0; if (s < 0) j.sol = true; }
@@ -845,7 +1589,7 @@
     }
     for (const o of m.pendules) {
       if (o.detruit || Math.abs(o.x - j.x) > o.L + U) continue;
-      const b = posPendule(o, j.t);
+      const b = posPendule(o, tPiege(o, j));
       const cx = Math.max(j.x + 3, Math.min(b.x, j.x + U - 3)), cy = Math.max(j.y + 3, Math.min(b.y, j.y + U - 3));
       if ((cx - b.x) ** 2 + (cy - b.y) ** 2 < (o.r - 3) ** 2) {
         // une scie touchée repousse TOUJOURS en arrière (sauf avec le turbo, qui la casse)
@@ -868,7 +1612,7 @@
     }
     for (const o of m.scies) {
       if (o.detruit || Math.abs(o.x - j.x) > 3 * U) continue;
-      const y = yScie(o, j.t);
+      const y = yScie(o, tPiege(o, j));
       const cx = Math.max(j.x + 3, Math.min(o.x, j.x + U - 3)), cy = Math.max(j.y + 3, Math.min(y, j.y + U - 3));
       if ((cx - o.x) ** 2 + (cy - y) ** 2 < (o.r - 3) ** 2) {
         if (j.boost > 0) { o.detruit = true; ev.push("casse"); }
@@ -930,8 +1674,8 @@
     const casser = (o) => { o.detruit = true; n++; };
     // le laser ne détruit que ce qui est ROSE : piques, scies (pendules et scies volantes)
     m.piques.forEach((p) => { if (!p.detruit && dansX(p.x) && (p.bas ? dansY(p.y, p.y + U) : dansY(p.y - U, p.y))) casser(p); });
-    m.pendules.forEach((o) => { const b = posPendule(o, j.t); if (!o.detruit && dansX(b.x - o.r, 2 * o.r) && dansY(b.y - o.r, b.y + o.r)) casser(o); });
-    m.scies.forEach((o) => { const y = yScie(o, j.t); if (!o.detruit && dansX(o.x - o.r, 2 * o.r) && dansY(y - o.r, y + o.r)) casser(o); });
+    m.pendules.forEach((o) => { const b = posPendule(o, tPiege(o, j)); if (!o.detruit && dansX(b.x - o.r, 2 * o.r) && dansY(b.y - o.r, b.y + o.r)) casser(o); });
+    m.scies.forEach((o) => { const y = yScie(o, tPiege(o, j)); if (!o.detruit && dansX(o.x - o.r, 2 * o.r) && dansY(y - o.r, y + o.r)) casser(o); });
     return { x1, x2, y: j.y + U / 2, n };
   }
 
@@ -999,7 +1743,7 @@
   }
 
   const API = { U, SOL, H, X_CUBE, G, SAUT, SAUT_V, SAUT_TREMPLIN, SAUT_COUPE, vitesseBase, vitesseJoueur, vitesseCroisiere, yDe, mulberry32, creerMonde, etendre, nettoyer, nouveauJoueur, copier, reprise, placer, MIROIR, accrocher, tirer, etape, laser, solSous, MORCEAUX, LISTES, reglerDouble: (dx, h) => { DX_DOUBLE = dx; H_DOUBLE = h; },
-    yTombant, yMobile, yScie, laserActif, laserHActif, posPendule, fragileTombe, porteOuverte };
+    yTombant, yMobile, yScie, tPiege, SETS, TAMPONS, laserActif, laserHActif, posPendule, fragileTombe, porteOuverte };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else racine.DashMoteur = API;
 })(typeof window !== "undefined" ? window : globalThis);
