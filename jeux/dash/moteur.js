@@ -635,6 +635,7 @@
       { nom: "Tour", f(h, x) {
         h.sol(x, x + 15 * U, 0);
         h.bulle(x + 3.5 * U, 3);
+        h.pilier(x + 6 * U, 0, 2, 3);   // marche collée au pilier : on peut monter sans la bulle
         h.pilier(x + 9 * U, 0, 4);
         return { l: 15, g: 0 };
       } },
@@ -659,6 +660,7 @@
       { nom: "Ascenseur", f(h, x) {
         h.sol(x, x + 16 * U, 0);
         h.bulle(x + 3 * U, 2.8); h.bulle(x + 6.5 * U, 4.6);
+        h.pilier(x + 7 * U, 0, 2.5, 3);   // marche collée au pilier
         h.pilier(x + 10 * U, 0, 5, 2);
         h.objet(x + 11 * U, 6.2);
         return { l: 16, g: 0 };
@@ -753,6 +755,7 @@
       { nom: "Catapulte", f(h, x) {
         h.sol(x, x + 16 * U, 0);
         h.tremplin(x + 3 * U, 0);
+        h.pilier(x + 6 * U, 0, 2, 3);   // marche collée à la tour
         h.pilier(x + 9 * U, 0, 4, 3);
         h.objet(x + 11.2 * U, 4.6);
         return { l: 16, g: 0 };
@@ -1204,10 +1207,10 @@
     return [
       { nom: "Pont de bulles", f(h, x) {
         h.sol(x, x + 2 * U, 0);
-        bulles(h, x, [[5, 2.6], [9.5, 2.6], [14, 2.6], [18.5, 2.6]]);
-        h.objet(x + 11.75 * U, 3.8);
-        h.sol(x + 23 * U, x + 27 * U, 0);
-        return { l: 27, g: 0 };
+        bulles(h, x, [[5, 2.6], [9.5, 2.6], [14, 2.6]]);
+        h.objet(x + 9.5 * U, 3.8);
+        h.sol(x + 18.5 * U, x + 22.5 * U, 0);
+        return { l: 22.5, g: 0 };
       } },
       { nom: "Montée", f(h, x) {
         h.sol(x, x + 2 * U, 0);
@@ -1226,10 +1229,10 @@
       } },
       { nom: "Zigzag", f(h, x) {
         h.sol(x, x + 2 * U, 0);
-        bulles(h, x, [[5, 1.8], [9, 3.8], [13, 1.8], [17, 3.8], [21, 1.8]]);
-        h.objet(x + 15 * U, 3.4);
-        h.sol(x + 25 * U, x + 29 * U, 0);
-        return { l: 29, g: 0 };
+        bulles(h, x, [[5, 1.8], [9, 3.8], [13, 1.8]]);
+        h.objet(x + 7 * U, 3.4);
+        h.sol(x + 17 * U, x + 21 * U, 0);
+        return { l: 21, g: 0 };
       } },
       { nom: "Scies battantes", f(h, x) {
         h.sol(x, x + 2 * U, 0);
