@@ -687,7 +687,7 @@
       } },
       { nom: "Slalom", f(h, x) {
         h.sol(x, x + 22 * U, 0);
-        h.pilier(x + 3 * U, 0, 1); h.pilierHaut(x + 8 * U, 2.2); h.pilier(x + 12 * U, 0, 1); h.pilierHaut(x + 17 * U, 2.2);
+        h.scie(x + 3.5 * U, 0.7, 0, 2); h.pilierHaut(x + 8 * U, 2.2); h.scie(x + 12.5 * U, 0.7, 0, 2); h.pilierHaut(x + 17 * U, 2.2);   // scies au sol à sauter, piliers du plafond à passer dessous
         return { l: 22, g: 0 };
       } },
       { nom: "Saut de l'ange", f(h, x) {
